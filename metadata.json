@@ -1,0 +1,8 @@
+{
+  "name": "PAI BP SD App",
+  "description": "Aplikasi Perangkat Pembelajaran Pendidikan Agama Islam dan Budi Pekerti (PAI BP) jenjang SD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

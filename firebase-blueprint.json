@@ -1,0 +1,39 @@
+{
+  "collections": [
+    {
+      "name": "user_profiles",
+      "fields": [
+        { "name": "uid", "type": "string" },
+        { "name": "namaGuru", "type": "string" },
+        { "name": "namaSekolah", "type": "string" },
+        { "name": "npsn", "type": "string" },
+        { "name": "tahunPelajaran", "type": "string" },
+        { "name": "nip", "type": "string" },
+        { "name": "namaKepalaSekolah", "type": "string" },
+        { "name": "nipKepalaSekolah", "type": "string" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "updatedAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "name": "teaching_schedules",
+      "fields": [
+        { "name": "uid", "type": "string" },
+        { "name": "grade", "type": "number" },
+        { "name": "schedules", "type": "map" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "updatedAt", "type": "timestamp" }
+      ]
+    },
+    {
+      "name": "protas",
+      "fields": [
+        { "name": "uid", "type": "string" },
+        { "name": "grade", "type": "number" },
+        { "name": "data", "type": "map" },
+        { "name": "createdAt", "type": "timestamp" },
+        { "name": "updatedAt", "type": "timestamp" }
+      ]
+    }
+  ]
+}
