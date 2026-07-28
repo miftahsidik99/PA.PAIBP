@@ -3,14 +3,13 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-  
-  app.use(express.json());
+const app = express();
+const PORT = 3000;
 
-  // API Route to generate ATP using Gemini (Batch)
-  app.post('/api/generate-atp-batch', async (req, res) => {
+app.use(express.json());
+
+// API Route to generate ATP using Gemini (Batch)
+app.post('/api/generate-atp-batch', async (req, res) => {
     try {
       const { gradeCp, jpPerWeek, totalMeetings } = req.body;
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -224,6 +223,7 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
     }
   });
 
+async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -243,4 +243,10 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
   });
 }
 
-startServer();
+// Only start the server if we are not running on Vercel
+if (!process.env.VERCEL) {
+  startServer();
+}
+
+// Export the app for Vercel
+export default app;
