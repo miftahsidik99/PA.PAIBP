@@ -82,14 +82,17 @@ export default function Prota() {
         })
       });
 
-      if (!response.ok) throw new Error('Failed to generate ATP');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || 'Failed to generate ATP');
+      }
       
       const data = await response.json();
       setProtaData(data.prota);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Terjadi kesalahan saat menghasilkan Prota dengan AI.');
+      alert(`Terjadi kesalahan: ${error.message}`);
     }
     setGenerating(false);
   };

@@ -91,7 +91,8 @@ export default function ModulAjar() {
       });
 
       if (!response.ok) {
-        throw new Error('Gagal menghasilkan Modul Ajar dari server');
+        const errData = await response.json().catch(() => null);
+        throw new Error(errData?.error || 'Gagal menghasilkan Modul Ajar dari server');
       }
 
       const data = await response.json();
@@ -208,9 +209,9 @@ export default function ModulAjar() {
 
       const blob = await Packer.toBlob(doc);
       saveAs(blob, `Modul_Ajar_Kelas_${selectedGrade}.docx`);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Terjadi kesalahan saat menghasilkan Modul Ajar.');
+      alert(`Terjadi kesalahan: ${error.message}`);
     } finally {
       setIsGeneratingModul(false);
     }
