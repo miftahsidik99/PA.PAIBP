@@ -20,6 +20,7 @@ export default function Prota() {
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [protaData, setProtaData] = useState<any[]>([]);
   const [savedProtas, setSavedProtas] = useState<Record<number, any[]>>({});
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSchedulesAndProta = async () => {
@@ -68,6 +69,7 @@ export default function Prota() {
     }
 
     setGenerating(true);
+    setErrorMessage(null);
     try {
       const jpPerWeek = schedules[selectedGrade]?.jp || 4;
       const totalMeetings = getEffectiveDates().length;
@@ -96,7 +98,7 @@ export default function Prota() {
       
     } catch (error: any) {
       console.error(error);
-      alert(`Terjadi kesalahan: ${error.message}`);
+      setErrorMessage(error.message || "Terjadi kesalahan yang tidak diketahui.");
     }
     setGenerating(false);
   };
@@ -278,6 +280,18 @@ export default function Prota() {
             </button>
           </div>
         </div>
+
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="font-bold text-red-800">Gagal menghasilkan AI</h3>
+              <p className="text-sm mt-1">{errorMessage}</p>
+            </div>
+          </div>
+        )}
 
         <div className="mb-6 flex gap-2">
           {[1,2,3,4,5,6].map(grade => (
