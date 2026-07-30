@@ -5,16 +5,11 @@ import { GoogleGenAI } from '@google/genai';
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json());
 
 // API Route to generate ATP using Gemini (Batch)
 app.post('/api/generate-atp-batch', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY belum ditambahkan di Environment Variables Vercel! Silakan tambahkan GEMINI_API_KEY di setting Vercel Anda.");
-      }
-
       const { gradeCp, jpPerWeek, totalMeetings } = req.body;
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
@@ -55,8 +50,8 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
       
       let text = '';
       let retries = 3;
-      let delay = 2000;
-      let usedModel = 'gemini-1.5-flash'; 
+      let delay = 42000;
+      let usedModel = 'gemini-flash-latest'; 
       
       while (retries > 0) {
         try {
@@ -131,10 +126,6 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
   // API Route to generate Modul Ajar using Gemini
   app.post('/api/generate-modul-ajar', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY) {
-        throw new Error("GEMINI_API_KEY belum ditambahkan di Environment Variables Vercel! Silakan tambahkan GEMINI_API_KEY di setting Vercel Anda.");
-      }
-
       const { atps, grade } = req.body;
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
@@ -181,8 +172,8 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
 
       let text = '';
       let retries = 3;
-      let delay = 2000;
-      let usedModel = 'gemini-1.5-flash'; 
+      let delay = 42000;
+      let usedModel = 'gemini-flash-latest'; 
       
       while (retries > 0) {
         try {
