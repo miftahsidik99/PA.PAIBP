@@ -93,10 +93,15 @@ export default function ModulAjar() {
       });
 
       if (!response.ok) {
-        let errorMsg = 'Gagal menghasilkan Modul Ajar dari server';
+        let errorMsg = `HTTP Error ${response.status} ${response.statusText}`;
         try {
-          const errData = await response.json();
-          if (errData.error) errorMsg = errData.error;
+          const errText = await response.text();
+          try {
+            const errData = JSON.parse(errText);
+            if (errData.error) errorMsg = errData.error;
+          } catch (e) {
+            errorMsg = `${errorMsg}. Details: ${errText.slice(0, 150)}`;
+          }
         } catch(e) {}
         throw new Error(errorMsg);
       }

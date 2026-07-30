@@ -10,12 +10,13 @@ app.use(express.json());
 // API Route to generate ATP using Gemini (Batch)
 app.post('/api/generate-atp-batch', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_FIREBASE_GEMINI_API_KEY;
+      if (!apiKey) {
         throw new Error("GEMINI_API_KEY is missing. Harap tambahkan di Environment Variables Vercel.");
       }
       
       const { gradeCp, jpPerWeek, totalMeetings } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const prompt = `
 Anda adalah ahli kurikulum PAI BP SD.
@@ -130,11 +131,12 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
   // API Route to generate Modul Ajar using Gemini
   app.post('/api/generate-modul-ajar', async (req, res) => {
     try {
-      if (!process.env.GEMINI_API_KEY) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_FIREBASE_GEMINI_API_KEY;
+      if (!apiKey) {
         throw new Error("GEMINI_API_KEY is missing. Harap tambahkan di Environment Variables Vercel.");
       }
       const { atps, grade } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey });
       
       const prompt = `
 Anda adalah seorang ahli pendidikan yang bertugas menyusun Modul Ajar PAI dan Budi Pekerti Kelas ${grade} SD berdasarkan Permendikdasmen No. 13 Tahun 2025.
