@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { BookOpen, LogIn } from 'lucide-react';
+import { BookOpen, UserPlus } from 'lucide-react';
 import { useStore } from '../store/useStore';
 
-export default function Login() {
+export default function Signup() {
   const navigate = useNavigate();
   const { user, profile, login } = useStore();
   const [username, setUsername] = useState('');
@@ -17,13 +17,13 @@ export default function Login() {
     }
   }, [user, profile, navigate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       alert("Masukkan username dan password.");
       return;
     }
-    // Simple mock login handling:
+    // Simple mock signup handling (same as login since it's local):
     login(username.trim().toLowerCase());
   };
 
@@ -38,10 +38,10 @@ export default function Login() {
           <div className="mx-auto w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
             <BookOpen size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-emerald-800 mb-2 uppercase tracking-wider">PAIBP Smart</h1>
-          <p className="text-slate-500 mb-8 font-medium">Aplikasi Perangkat Pembelajaran Pendidikan Agama Islam dan Budi Pekerti</p>
+          <h1 className="text-2xl font-bold text-emerald-800 mb-2 uppercase tracking-wider">Daftar Akun</h1>
+          <p className="text-slate-500 mb-8 font-medium">Buat akun lokal baru untuk menyimpan perangkat pembelajaran</p>
           
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div>
               <input
                 type="text"
@@ -66,13 +66,13 @@ export default function Login() {
               type="submit"
               className="w-full flex items-center justify-center gap-3 bg-emerald-600 text-white rounded-xl py-3 px-4 font-bold hover:bg-emerald-700 transition-colors shadow-sm"
             >
-              <LogIn className="w-5 h-5" />
-              Masuk
+              <UserPlus className="w-5 h-5" />
+              Daftar
             </button>
           </form>
           
           <div className="mt-6 text-sm text-slate-600 font-medium">
-            Belum punya akun? <Link to="/signup" className="text-emerald-600 hover:text-emerald-700 font-bold">Daftar di sini</Link>
+            Sudah punya akun? <Link to="/" className="text-emerald-600 hover:text-emerald-700 font-bold">Masuk di sini</Link>
           </div>
         </div>
         <div className="bg-emerald-50/50 p-6 text-center text-[10px] text-emerald-700 border-t border-emerald-100/50 font-medium">

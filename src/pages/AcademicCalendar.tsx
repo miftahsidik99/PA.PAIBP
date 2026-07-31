@@ -3,8 +3,6 @@ import Layout from '../components/Layout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Save, Calendar, Edit2, X, Download } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { 
   startOfMonth, endOfMonth, eachDayOfInterval, format, getDay, 
   addMonths, isSameMonth, parse, isSameDay, parseISO
@@ -91,15 +89,11 @@ export default function AcademicCalendar() {
     const fetchCalendar = async () => {
       if (!user) return;
       try {
-        const docRef = doc(db, 'academic_calendar', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setAcademicYear(data.academicYear || '2026/2027');
-          setWeeklyDays(data.weeklyDays || 5);
-          setEvents1to5(data.events1to5 || {});
-          setEvents6(data.events6 || {});
-          setCalendarData(data as any);
+        if (calendarData) {
+          setAcademicYear(calendarData.academicYear || '2026/2027');
+          setWeeklyDays(calendarData.weeklyDays || 5);
+          setEvents1to5(calendarData.events1to5 || {});
+          setEvents6(calendarData.events6 || {});
         } else {
           // Initialize defaults
           const startYear = parseInt(profile?.tahunPelajaran?.split('/')[0] || '2026');
@@ -124,7 +118,7 @@ export default function AcademicCalendar() {
         events1to5,
         events6
       };
-      await setDoc(doc(db, 'academic_calendar', user.uid), data);
+      
       setCalendarData(data);
       alert('Kalender akademik berhasil disimpan!');
     } catch (error) {

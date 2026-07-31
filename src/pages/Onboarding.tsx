@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+
+
 import { useStore } from '../store/useStore';
 import { motion } from 'framer-motion';
 
@@ -29,7 +29,7 @@ export default function Onboarding() {
 
     try {
       const profileData = { ...formData, uid: user.uid, createdAt: new Date() };
-      await setDoc(doc(db, 'user_profiles', user.uid), profileData);
+      
       setProfile(profileData);
       navigate('/schedule');
     } catch (error) {

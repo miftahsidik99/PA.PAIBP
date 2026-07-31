@@ -2,37 +2,30 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Download, CheckSquare, RefreshCw } from 'lucide-react';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, BorderStyle, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
 
 export default function ModulAjar() {
-  const { user, profile } = useStore();
+  const { user, profile, schedules: storeSchedules, savedProtas: storeProtas } = useStore();
   const [schedules, setSchedules] = useState<Record<number, any>>({});
   const [savedProtas, setSavedProtas] = useState<Record<number, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [selectedAtp, setSelectedAtp] = useState<string[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSchedulesAndProta = async () => {
       if (!user) return;
       
-      const schedRef = doc(db, 'teaching_schedules', user.uid);
-      const schedSnap = await getDoc(schedRef);
-      if (schedSnap.exists()) {
-        setSchedules(schedSnap.data().schedules);
+      if (Object.keys(storeSchedules).length > 0) {
+        setSchedules(storeSchedules);
       }
-
-      const protaRef = doc(db, 'protas', user.uid);
-      const protaSnap = await getDoc(protaRef);
-      if (protaSnap.exists()) {
-        setSavedProtas(protaSnap.data().data || {});
+      
+      if (Object.keys(storeProtas).length > 0) {
+        setSavedProtas(storeProtas);
       }
-
+      
       setLoading(false);
     };
     fetchSchedulesAndProta();
@@ -53,10 +46,8 @@ export default function ModulAjar() {
     if (!user) return;
     setLoading(true);
     try {
-      const protaRef = doc(db, 'protas', user.uid);
-      const protaSnap = await getDoc(protaRef);
-      if (protaSnap.exists()) {
-        setSavedProtas(protaSnap.data().data || {});
+      if (Object.keys(storeProtas).length > 0) {
+        setSavedProtas(storeProtas);
       }
       setSelectedAtp([]);
     } catch (err) {
@@ -78,7 +69,6 @@ export default function ModulAjar() {
 
 
     setIsGeneratingModul(true);
-    setErrorMessage(null);
     
     try {
       const response = await fetch('/api/generate-modul-ajar', {
@@ -93,17 +83,7 @@ export default function ModulAjar() {
       });
 
       if (!response.ok) {
-        let errorMsg = `HTTP Error ${response.status} ${response.statusText}`;
-        try {
-          const errText = await response.text();
-          try {
-            const errData = JSON.parse(errText);
-            if (errData.error) errorMsg = errData.error;
-          } catch (e) {
-            errorMsg = `${errorMsg}. Details: ${errText.slice(0, 150)}`;
-          }
-        } catch(e) {}
-        throw new Error(errorMsg);
+        throw new Error('Gagal menghasilkan Modul Ajar dari server');
       }
 
       const data = await response.json();
@@ -220,9 +200,9 @@ export default function ModulAjar() {
 
       const blob = await Packer.toBlob(doc);
       saveAs(blob, `Modul_Ajar_Kelas_${selectedGrade}.docx`);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      setErrorMessage(error.message || "Terjadi kesalahan yang tidak diketahui.");
+      alert('Terjadi kesalahan saat menghasilkan Modul Ajar.');
     } finally {
       setIsGeneratingModul(false);
     }
@@ -267,18 +247,6 @@ export default function ModulAjar() {
             </button>
           </div>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <h3 className="font-bold text-red-800">Gagal menghasilkan AI</h3>
-              <p className="text-sm mt-1">{errorMessage}</p>
-            </div>
-          </div>
-        )}
 
         <div className="mb-6 flex gap-2">
           {[1,2,3,4,5,6].map(grade => (

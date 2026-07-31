@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Save } from 'lucide-react';
 
 const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -15,7 +13,7 @@ interface ScheduleItem {
 }
 
 export default function Schedule() {
-  const { user } = useStore();
+  const { user, schedules: storeSchedules, setSchedules: setStoreSchedules } = useStore();
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>({
     1: { day: '', jp: 0 },
     2: { day: '', jp: 0 },
@@ -30,10 +28,8 @@ export default function Schedule() {
   useEffect(() => {
     const fetchSchedules = async () => {
       if (!user) return;
-      const docRef = doc(db, 'teaching_schedules', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSchedules(docSnap.data().schedules);
+      if (Object.keys(storeSchedules).length > 0) {
+        setSchedules(storeSchedules);
       }
       setLoading(false);
     };
@@ -54,11 +50,7 @@ export default function Schedule() {
     if (!user) return;
     setSaving(true);
     try {
-      await setDoc(doc(db, 'teaching_schedules', user.uid), {
-        uid: user.uid,
-        schedules,
-        updatedAt: new Date()
-      });
+      setStoreSchedules(schedules);
       alert('Jadwal berhasil disimpan!');
     } catch (error) {
       console.error(error);

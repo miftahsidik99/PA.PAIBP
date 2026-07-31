@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Download, Save, BrainCircuit } from 'lucide-react';
 import { cpData } from '../data/cp';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, PageOrientation } from 'docx';
@@ -12,7 +10,7 @@ import { eachDayOfInterval, format, getDay, isSameMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
 
 export default function Prota() {
-  const { user, calendarData, setCalendarData } = useStore();
+  const { user, calendarData, schedules: storeSchedules, savedProtas: storeProtas, setSavedProtas: setStoreProtas } = useStore();
   const [schedules, setSchedules] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -20,35 +18,22 @@ export default function Prota() {
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [protaData, setProtaData] = useState<any[]>([]);
   const [savedProtas, setSavedProtas] = useState<Record<number, any[]>>({});
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSchedulesAndProta = async () => {
       if (!user) return;
       
-      const schedRef = doc(db, 'teaching_schedules', user.uid);
-      const schedSnap = await getDoc(schedRef);
-      if (schedSnap.exists()) {
-        setSchedules(schedSnap.data().schedules);
+      if (Object.keys(storeSchedules).length > 0) {
+        setSchedules(storeSchedules);
       }
-
-      const protaRef = doc(db, 'protas', user.uid);
-      const protaSnap = await getDoc(protaRef);
-      if (protaSnap.exists()) {
-        setSavedProtas(protaSnap.data().data || {});
-        if (protaSnap.data().data && protaSnap.data().data[1]) {
-          setProtaData(protaSnap.data().data[1]);
+      
+      if (Object.keys(storeProtas).length > 0) {
+        setSavedProtas(storeProtas);
+        if (storeProtas[1]) {
+          setProtaData(storeProtas[1]);
         }
       }
       
-      if (!calendarData) {
-        const calRef = doc(db, 'academic_calendar', user.uid);
-        const calSnap = await getDoc(calRef);
-        if (calSnap.exists()) {
-          setCalendarData(calSnap.data() as any);
-        }
-      }
-
       setLoading(false);
     };
     fetchSchedulesAndProta();
@@ -69,7 +54,6 @@ export default function Prota() {
     }
 
     setGenerating(true);
-    setErrorMessage(null);
     try {
       const jpPerWeek = schedules[selectedGrade]?.jp || 4;
       const totalMeetings = getEffectiveDates().length;
@@ -84,26 +68,14 @@ export default function Prota() {
         })
       });
 
-      if (!response.ok) {
-        let errorMsg = `HTTP Error ${response.status} ${response.statusText}`;
-        try {
-          const errText = await response.text();
-          try {
-            const errData = JSON.parse(errText);
-            if (errData.error) errorMsg = errData.error;
-          } catch (e) {
-            errorMsg = `${errorMsg}. Details: ${errText.slice(0, 150)}`;
-          }
-        } catch(e) {}
-        throw new Error(errorMsg);
-      }
+      if (!response.ok) throw new Error('Failed to generate ATP');
       
       const data = await response.json();
       setProtaData(data.prota);
       
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      setErrorMessage(error.message || "Terjadi kesalahan yang tidak diketahui.");
+      alert('Terjadi kesalahan saat menghasilkan Prota dengan AI.');
     }
     setGenerating(false);
   };
@@ -113,11 +85,7 @@ export default function Prota() {
     setSaving(true);
     try {
       const newData = { ...savedProtas, [selectedGrade]: protaData };
-      await setDoc(doc(db, 'protas', user.uid), {
-        uid: user.uid,
-        data: newData,
-        updatedAt: new Date()
-      });
+      setStoreProtas(newData);
       setSavedProtas(newData);
       alert('Program Tahunan berhasil disimpan!');
     } catch (error) {
@@ -285,18 +253,6 @@ export default function Prota() {
             </button>
           </div>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 text-red-700">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <h3 className="font-bold text-red-800">Gagal menghasilkan AI</h3>
-              <p className="text-sm mt-1">{errorMessage}</p>
-            </div>
-          </div>
-        )}
 
         <div className="mb-6 flex gap-2">
           {[1,2,3,4,5,6].map(grade => (

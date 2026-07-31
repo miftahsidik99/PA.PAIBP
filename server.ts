@@ -1,22 +1,19 @@
 import express from 'express';
 import path from 'path';
+import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 
-const app = express();
-const PORT = 3000;
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+  
+  app.use(express.json());
 
-app.use(express.json());
-
-// API Route to generate ATP using Gemini (Batch)
-app.post('/api/generate-atp-batch', async (req, res) => {
+  // API Route to generate ATP using Gemini (Batch)
+  app.post('/api/generate-atp-batch', async (req, res) => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_FIREBASE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY is missing. Harap tambahkan di Environment Variables Vercel.");
-      }
-      
       const { gradeCp, jpPerWeek, totalMeetings } = req.body;
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const prompt = `
 Anda adalah ahli kurikulum PAI BP SD.
@@ -55,8 +52,8 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
       
       let text = '';
       let retries = 3;
-      let delay = 2000;
-      let usedModel = 'gemini-2.5-flash'; 
+      let delay = 42000;
+      let usedModel = 'gemini-flash-latest'; 
       
       while (retries > 0) {
         try {
@@ -131,12 +128,8 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
   // API Route to generate Modul Ajar using Gemini
   app.post('/api/generate-modul-ajar', async (req, res) => {
     try {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_FIREBASE_GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY is missing. Harap tambahkan di Environment Variables Vercel.");
-      }
       const { atps, grade } = req.body;
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const prompt = `
 Anda adalah seorang ahli pendidikan yang bertugas menyusun Modul Ajar PAI dan Budi Pekerti Kelas ${grade} SD berdasarkan Permendikdasmen No. 13 Tahun 2025.
@@ -181,8 +174,8 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
 
       let text = '';
       let retries = 3;
-      let delay = 2000;
-      let usedModel = 'gemini-2.5-flash'; 
+      let delay = 42000;
+      let usedModel = 'gemini-flash-latest'; 
       
       while (retries > 0) {
         try {
@@ -231,9 +224,7 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
     }
   });
 
-async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -252,10 +243,4 @@ async function startServer() {
   });
 }
 
-// Only start the server if we are not running on Vercel
-if (!process.env.VERCEL) {
-  startServer();
-}
-
-// Export the app for Vercel
-export default app;
+startServer();

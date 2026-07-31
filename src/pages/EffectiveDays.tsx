@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'framer-motion';
 import { useStore } from '../store/useStore';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { Download, FileText } from 'lucide-react';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
@@ -23,7 +21,7 @@ const holidays = [
 ];
 
 export default function EffectiveDays() {
-  const { user, calendarData } = useStore();
+  const { user, calendarData, schedules: storeSchedules } = useStore();
   const [schedules, setSchedules] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
@@ -34,19 +32,8 @@ export default function EffectiveDays() {
   useEffect(() => {
     const fetchSchedules = async () => {
       if (!user) return;
-      const docRef = doc(db, 'teaching_schedules', user.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSchedules(docSnap.data().schedules);
-      }
-      
-      // Also fetch calendar if not in store
-      if (!calendarData) {
-        const calRef = doc(db, 'academic_calendar', user.uid);
-        const calSnap = await getDoc(calRef);
-        if (calSnap.exists()) {
-          useStore.getState().setCalendarData(calSnap.data() as any);
-        }
+      if (Object.keys(storeSchedules).length > 0) {
+        setSchedules(storeSchedules);
       }
       
       setLoading(false);
