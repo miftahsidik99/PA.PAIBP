@@ -3,6 +3,9 @@ import { ReactNode, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { LogOut, BookOpen, Calendar, BookText, Home, FileText, Download, Upload } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import ApiKeyModal from './ApiKeyModal';
+import { Key } from 'lucide-react';
+import { useState } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -18,6 +21,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isApiModalOpen, setIsApiModalOpen] = useState(false);
   const handleLogout = () => {
     logout();
   };
@@ -100,6 +104,13 @@ export default function Layout({ children }: { children: ReactNode }) {
             <Upload className="mr-3 h-4 w-4 text-slate-400" />
             Restore Data
           </button>
+                    <button
+            onClick={() => setIsApiModalOpen(true)}
+            className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-600 rounded-xl hover:bg-white/40 transition-colors"
+          >
+            <Key className="mr-3 h-4 w-4 text-slate-400" />
+            Pengaturan API
+          </button>
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -120,6 +131,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>
+      <ApiKeyModal isOpen={isApiModalOpen} onClose={() => setIsApiModalOpen(false)} />
     </div>
   );
 }

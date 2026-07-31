@@ -52,6 +52,8 @@ interface AppState {
   setSavedProtas: (protas: Record<number, any[]>) => void;
 
   importData: (jsonData: string) => void;
+  geminiApiKey: string | null;
+  setGeminiApiKey: (key: string) => void;
 }
 
 const initialUserData: UserData = {
@@ -71,6 +73,8 @@ export const useStore = create<AppState>()(
       calendarData: null,
       schedules: {},
       savedProtas: {},
+      geminiApiKey: null,
+      setGeminiApiKey: (key) => set({ geminiApiKey: key }),
 
       login: (username: string) => {
         const state = get();
