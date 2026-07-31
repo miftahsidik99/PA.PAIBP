@@ -96,7 +96,7 @@ Contoh Format:
 Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`\`json.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
       });
       

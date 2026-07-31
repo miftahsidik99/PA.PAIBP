@@ -117,7 +117,7 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
 }`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-3.6-flash',
         contents: prompt,
       });
 

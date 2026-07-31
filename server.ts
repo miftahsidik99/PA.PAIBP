@@ -53,7 +53,7 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
       let text = '';
       let retries = 3;
       let delay = 42000;
-      let usedModel = 'gemini-flash-latest'; 
+      let usedModel = 'gemini-3.6-flash'; 
       
       while (retries > 0) {
         try {
@@ -175,7 +175,7 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
       let text = '';
       let retries = 3;
       let delay = 42000;
-      let usedModel = 'gemini-flash-latest'; 
+      let usedModel = 'gemini-3.6-flash'; 
       
       while (retries > 0) {
         try {
