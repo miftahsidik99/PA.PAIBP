@@ -29,6 +29,7 @@ export interface UserData {
   calendarData: CalendarData | null;
   schedules: Record<number, any>;
   savedProtas: Record<number, any[]>;
+  generatedModulAtps: Record<number, string[]>;
 }
 
 interface AppState {
@@ -50,6 +51,8 @@ interface AppState {
   setCalendarData: (data: CalendarData | null) => void;
   setSchedules: (schedules: Record<number, any>) => void;
   setSavedProtas: (protas: Record<number, any[]>) => void;
+  generatedModulAtps: Record<number, string[]>;
+  markAtpAsGenerated: (grade: number, atps: string[]) => void;
 
   importData: (jsonData: string) => void;
   geminiApiKey: string | null;
@@ -60,7 +63,8 @@ const initialUserData: UserData = {
   profile: null,
   calendarData: null,
   schedules: {},
-  savedProtas: {}
+  savedProtas: {},
+  generatedModulAtps: {}
 };
 
 export const useStore = create<AppState>()(
@@ -73,6 +77,7 @@ export const useStore = create<AppState>()(
       calendarData: null,
       schedules: {},
       savedProtas: {},
+      generatedModulAtps: {},
       geminiApiKey: null,
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
 
@@ -86,6 +91,7 @@ export const useStore = create<AppState>()(
           calendarData: userData.calendarData,
           schedules: userData.schedules,
           savedProtas: userData.savedProtas,
+          generatedModulAtps: userData.generatedModulAtps || {},
           usersData: {
             ...state.usersData,
             [username]: userData
@@ -101,6 +107,7 @@ export const useStore = create<AppState>()(
           calendarData: null,
           schedules: {},
           savedProtas: {},
+          generatedModulAtps: {},
         });
       },
 
@@ -136,6 +143,22 @@ export const useStore = create<AppState>()(
           usersData: {
             ...state.usersData,
             [state.currentUser]: { ...state.usersData[state.currentUser], schedules }
+          }
+        });
+      },
+
+
+      markAtpAsGenerated: (grade, atps) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const currentGenerated = state.generatedModulAtps[grade] || [];
+        const newGenerated = [...new Set([...currentGenerated, ...atps])];
+        const newGeneratedModulAtps = { ...state.generatedModulAtps, [grade]: newGenerated };
+        set({
+          generatedModulAtps: newGeneratedModulAtps,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], generatedModulAtps: newGeneratedModulAtps }
           }
         });
       },
