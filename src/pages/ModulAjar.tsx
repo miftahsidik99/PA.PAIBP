@@ -9,28 +9,13 @@ import { saveAs } from 'file-saver';
 
 export default function ModulAjar() {
   const { user, profile, geminiApiKey, schedules: storeSchedules, savedProtas: storeProtas } = useStore();
-  const [schedules, setSchedules] = useState<Record<number, any>>({});
-  const [savedProtas, setSavedProtas] = useState<Record<number, any[]>>({});
-  const [loading, setLoading] = useState(true);
+
+
+  const [loading, setLoading] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [selectedAtp, setSelectedAtp] = useState<string[]>([]);
 
-  useEffect(() => {
-    const fetchSchedulesAndProta = async () => {
-      if (!user) return;
-      
-      if (Object.keys(storeSchedules).length > 0) {
-        setSchedules(storeSchedules);
-      }
-      
-      if (Object.keys(storeProtas).length > 0) {
-        setSavedProtas(storeProtas);
-      }
-      
-      setLoading(false);
-    };
-    fetchSchedulesAndProta();
-  }, [user]);
+
 
   const handleGradeChange = (grade: number) => {
     setSelectedGrade(grade);
@@ -44,19 +29,12 @@ export default function ModulAjar() {
   };
 
   const syncATP = async () => {
-    if (!user) return;
     setLoading(true);
-    try {
-      if (Object.keys(storeProtas).length > 0) {
-        setSavedProtas(storeProtas);
-      }
+    setTimeout(() => {
       setSelectedAtp([]);
-    } catch (err) {
-      console.error(err);
-      alert('Gagal menyinkronkan data ATP');
-    } finally {
       setLoading(false);
-    }
+      alert('Data ATP berhasil disinkronkan dari Prota!');
+    }, 500);
   };
 
   const [isGeneratingModul, setIsGeneratingModul] = useState(false);
@@ -69,7 +47,7 @@ export default function ModulAjar() {
       return;
     }
 
-    const jpPerWeek = schedules[selectedGrade]?.jp || 4;
+    const jpPerWeek = storeSchedules[selectedGrade]?.jp || 4;
     const totalJp = selectedAtp.length * jpPerWeek;
     const pertemuan = selectedAtp.length;
     setIsGeneratingModul(true);
@@ -258,7 +236,7 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
     }
   };
 
-  const protaList = savedProtas[selectedGrade] || [];
+  const protaList = storeProtas[selectedGrade] || [];
   
   // Flatten ATPs
   const allAtps: { elemen: string, atp: string }[] = [];
