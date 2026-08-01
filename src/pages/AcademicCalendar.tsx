@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Save, Calendar, Edit2, X, Download } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { 

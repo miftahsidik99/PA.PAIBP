@@ -2,7 +2,7 @@ import React from 'react';
 import { useState } from 'react';
 import Layout from '../components/Layout';
 import { useStore } from '../store/useStore';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { Pencil, Check, X, Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -18,6 +18,7 @@ export default function Dashboard() {
     npsn: profile?.npsn || '',
     namaKepalaSekolah: profile?.namaKepalaSekolah || '',
     nipKepalaSekolah: profile?.nipKepalaSekolah || '',
+    tahunPelajaran: profile?.tahunPelajaran || '2026/2027',
   });
   
 
@@ -30,6 +31,7 @@ export default function Dashboard() {
         npsn: profile?.npsn || '',
         namaKepalaSekolah: profile?.namaKepalaSekolah || '',
         nipKepalaSekolah: profile?.nipKepalaSekolah || '',
+        tahunPelajaran: profile?.tahunPelajaran || '2026/2027',
       });
     }
     setIsEditing(!isEditing);
@@ -180,6 +182,21 @@ export default function Dashboard() {
                 />
               ) : (
                 <p className="font-bold text-slate-800">{profile?.nipKepalaSekolah || '-'}</p>
+              )}
+            </div>
+            <div className="p-4 bg-white/40 rounded-2xl border border-white/60 shadow-sm">
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-400 mb-2">Tahun Pelajaran</p>
+              {isEditing ? (
+                <input
+                  type="text"
+                  name="tahunPelajaran"
+                  value={formData.tahunPelajaran}
+                  onChange={handleChange}
+                  placeholder="Contoh: 2026/2027"
+                  className="w-full px-3 py-2 text-sm font-bold text-slate-800 bg-white/80 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                />
+              ) : (
+                <p className="font-bold text-slate-800">{profile?.tahunPelajaran || '-'}</p>
               )}
             </div>
           </div>

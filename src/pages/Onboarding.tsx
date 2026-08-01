@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 import { useStore } from '../store/useStore';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 export default function Onboarding() {
   const { user, setProfile } = useStore();
@@ -77,7 +77,7 @@ export default function Onboarding() {
             </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-bold text-slate-700 mb-1">Tahun Pembelajaran</label>
-              <input required type="text" name="tahunPelajaran" value={formData.tahunPelajaran} onChange={handleChange} className="block w-full rounded-xl border-white bg-slate-100 shadow-sm border p-3 font-medium text-slate-500" readOnly />
+              <input required type="text" name="tahunPelajaran" value={formData.tahunPelajaran} onChange={handleChange} placeholder="Contoh: 2026/2027" className="block w-full rounded-xl border-white bg-white/80 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 border p-3 font-medium" />
             </div>
           </div>
           <div className="pt-4">

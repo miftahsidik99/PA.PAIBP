@@ -3,6 +3,15 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.GEMINI_API_KEY!,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -13,7 +22,6 @@ async function startServer() {
   app.post('/api/generate-atp-batch', async (req, res) => {
     try {
       const { gradeCp, jpPerWeek, totalMeetings } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       
       const prompt = `
 Anda adalah ahli kurikulum PAI BP SD.
@@ -34,7 +42,7 @@ Setiap ATP akan dipelajari dalam 1 pertemuan (${jpPerWeek} JP).
 ATURAN SANGAT PENTING (WAJIB DIIKUTI):
 1. TOTAL SELURUH ATP DARI SEMUA ELEMEN JIKA DIJUMLAHKAN HARUS SAMA PERSIS DENGAN ${totalMeetings || 36} ATP!
 2. Anda memiliki ${gradeCp.length} elemen. Jika total target adalah ${totalMeetings || 36}, maka rata-rata setiap elemen harus memiliki sekitar ${Math.round((totalMeetings || 36) / gradeCp.length)} ATP di dalam array "atp"-nya.
-3. Distribusikan materi dari Semester 1 hingga Semester 2 secara logis dan berurutan.
+3. Distribusikan materi dari Semester 1 hingga Semester 2 secara logis and berurutan.
 4. JANGAN menghasilkan lebih sedikit atau lebih banyak dari ${totalMeetings || 36} ATP secara keseluruhan. Hitung dengan teliti!
 
 Berikan output HANYA berupa array JSON yang persis dengan input, tetapi dengan properti tambahan "atp" (array of strings) di setiap itemnya.
@@ -51,8 +59,8 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
 `;
       
       let text = '';
-      let retries = 3;
-      let delay = 42000;
+      let retries = 5;
+      let delay = 3000;
       let usedModel = 'gemini-3.6-flash'; 
       
       while (retries > 0) {
@@ -60,16 +68,26 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
           const response = await ai.models.generateContent({
             model: usedModel,
             contents: prompt,
+            config: {
+              responseMimeType: "application/json"
+            }
           });
           text = response.text || "[]";
           break;
         } catch (err: any) {
-          if (err?.status === 'RESOURCE_EXHAUSTED' || err?.status === 429 || err?.message?.includes('429') || err?.status === 503 || err?.message?.includes('503')) {
+          console.error(`Gemini ATP Error (${retries} retries left, model: ${usedModel}):`, err);
+          if (err?.status === 429 || err?.message?.includes('429') || err?.status === 503 || err?.message?.includes('503') || err?.status === 'RESOURCE_EXHAUSTED' || err?.status === 404 || err?.message?.includes('not found')) {
             retries--;
             if (retries === 0) throw err;
-            console.log(`Rate limit or 503 hit on ${usedModel}. Retrying in ${delay/1000}s...`);
+            
+            // Cycle through stable models
+            const fallbackModels = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+            const currentIdx = fallbackModels.indexOf(usedModel);
+            usedModel = fallbackModels[currentIdx === -1 ? 0 : (currentIdx + 1) % fallbackModels.length];
+            
+            console.log(`Rotating to ${usedModel} due to error. Retrying in ${delay/1000}s...`);
             await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
+            delay *= 1.5;
           } else {
             throw err;
           }
@@ -128,53 +146,71 @@ Jangan ada teks apa pun selain JSON yang valid. Jangan gunakan tag markdown \`\`
   // API Route to generate Modul Ajar using Gemini
   app.post('/api/generate-modul-ajar', async (req, res) => {
     try {
-      const { atps, grade } = req.body;
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const { selectedAtp, selectedGrade, totalJp, pertemuan, profile, karakteristik } = req.body;
       
-      const prompt = `
-Anda adalah seorang ahli pendidikan yang bertugas menyusun Modul Ajar PAI dan Budi Pekerti Kelas ${grade} SD berdasarkan Permendikdasmen No. 13 Tahun 2025.
-Alur Tujuan Pembelajaran (ATP) yang dipilih:
-${atps.map((atp: string, i: number) => `${i+1}. ${atp}`).join('\n')}
+      const prompt = `Anda adalah Tim Ahli Kurikulum Pendidikan Indonesia (Kemendikdasmen, Pengembang Kurikulum Merdeka, Ahli Deep Learning). 
+Tugas Anda adalah menyusun MODUL AJAR LENGKAP (BUKAN RINGKASAN) mata pelajaran PAI dan Budi Pekerti Kelas ${selectedGrade} SD berdasarkan Permendikdasmen Nomor 13 Tahun 2025.
 
-Buatlah konten Modul Ajar yang menerapkan konsep 8,3,3,4:
-- 8 Profil Lulusan (Beriman bertakwa, Berakhlak mulia, Mandiri, Bernalar kritis, Kreatif, Bergotong royong, Berkebinekaan global, Sehat jasmani rohani)
-- 3 Prinsip Pembelajaran (Mindfull learning, Joy full learning, Meaning full learning)
-- 3 Pengalaman Belajar (Memahami, Mengaplikasi, Merefleksi)
-- 4 Kerangka Pembelajaran (Praktik pedagogis, Kemitraan pembelajaran, Lingkungan pembelajaran, Pemanfaatan teknologi digital)
+ATP yang dipilih:
+${selectedAtp.map((atp: string, i: number) => `${i+1}. ${atp}`).join('\n')}
 
-Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output JSON, tanpa markdown code block, tanpa teks pengantar):
+Identitas Sekolah:
+Guru: ${profile?.namaGuru || '[DIISI OLEH GURU]'}
+Sekolah: ${profile?.namaSekolah || '[DIISI OLEH GURU]'}
+Tahun Pelajaran: 2024/2025
+Karakteristik Peserta Didik: ${karakteristik || 'Reguler/Tipikal'}
+
+IKUTI PRINSIP PEMBELAJARAN MENDALAM (DEEP LEARNING) 8,3,3,4:
+- 8 Dimensi Profil Lulusan: Beriman bertakwa, Berakhlak mulia, Mandiri, Bernalar kritis, Kreatif, Bergotong royong, Berkebinekaan global, Sehat jasmani rohani.
+- 3 Prinsip: Mindful, Meaningful, Joyful Learning.
+- 3 Pengalaman: Memahami, Mengaplikasi, Merefleksi.
+- 4 Kerangka: Praktik Pedagogis, Kemitraan, Lingkungan, Teknologi Digital.
+
+STRUKTUR MODUL YANG HARUS DIHASILKAN (LENGKAP):
+1. IDENTITAS: Nama Guru, Sekolah, Fase, Kelas, Semester, Mapel, Elemen, Materi, Alokasi Waktu (total ${totalJp} JP), Model (Maks 1), Pendekatan (Maks 1), Metode (Maks 1), Media (Maks 1), Sumber, Karakteristik Siswa (Gunakan: ${karakteristik || 'Reguler/Tipikal'}), Target, Sarana Prasarana.
+KETENTUAN KHUSUS (PENTING): 
+- Model: Tentukan HANYA 1 model utama (misal: PBL, PJBL, atau Discovery).
+- Pendekatan: Tentukan HANYA 1 pendekatan utama (misal: TaRL, CRT, atau Saintifik).
+- Metode: Tentukan HANYA 1 metode yang paling dominan (misal: Diskusi, Ceramah, atau Tanya Jawab).
+- Media: Tentukan HANYA 1 media utama yang benar-benar digunakan.
+- PASTIKAN JUMLAHNYA PAS 1 UNTUK MASING-MASING POIN DI ATAS.
+2. KOMPONEN INTI: Capaian Pembelajaran, Tujuan Pembelajaran (KKO), Alur Tujuan Pembelajaran, Pemahaman Bermakna (manfaat nyata), Pertanyaan Pemantik (min 5).
+3. DIAGNOSTIK: Deskripsi & Instrumen Diagnostik Kognitif & Non-Kognitif.
+4. PEMBELAJARAN MENDALAM: Implementasi kontekstual 8,3,3,4 pada materi ini.
+5. LANGKAH PEMBELAJARAN: Rinci per pertemuan (${pertemuan} pertemuan). Setiap pertemuan ada: Pendahuluan, Inti (aktivitas guru & siswa rinci), Penutup. Sertakan estimasi waktu.
+6. ASESMEN & INSTRUMEN: Diagnostik, Formatif, Sumatif. Pilih instrumen & rubrik paling relevan (Observasi/Kinerja/Tes dll).
+7. PENGAYAAN & REMEDIAL: Rencana lengkap.
+8. REFLEKSI: Refleksi Guru (min 10 soal) & Refleksi Siswa (min 10 soal).
+9. LKPD: Judul, Tujuan, Petunjuk, Alat, Langkah, Tugas, Soal, Ruang Jawaban.
+10. BAHAN BACAAN, GLOSARIUM, DAFTAR PUSTAKA.
+11. LAMPIRAN: (Lembar observasi, jurnal, bank soal, dll).
+12. TABEL VALIDASI: Tabel pengecekan mandiri AI (Kelengkapan, Kesesuaian, Placeholder, Konsistensi).
+
+Format balasan berupa JSON dengan struktur berikut (Hanya output JSON, tanpa markdown code block, tanpa teks pengantar):
 {
-  "tujuanPembelajaran": "Tujuan utama pembelajaran berdasarkan ATP",
-  "profilLulusan": ["Pilih 3-4 profil lulusan yang paling relevan dengan materi ini"],
-  "prinsipPembelajaran": {
-    "mindfullLearning": "Deskripsi penerapan mindfull learning (kesadaran penuh)",
-    "joyfullLearning": "Deskripsi penerapan joy full learning (pembelajaran menyenangkan)",
-    "meaningfullLearning": "Deskripsi penerapan meaning full learning (pembelajaran bermakna)"
-  },
-  "pengalamanBelajar": {
-    "memahami": "Deskripsi kegiatan untuk memahami materi",
-    "mengaplikasi": "Deskripsi kegiatan untuk mengaplikasikan materi",
-    "merefleksi": "Deskripsi kegiatan untuk merefleksikan materi"
-  },
-  "kerangkaPembelajaran": {
-    "praktikPedagogis": "Strategi dan pendekatan pedagogis yang digunakan",
-    "kemitraanPembelajaran": "Kemitraan pembelajaran yang dibangun (kemitraan belajar)",
-    "lingkunganPembelajaran": "Kondisi lingkungan belajar yang dibangun",
-    "pemanfaatanTeknologiDigital": "Penggunaan alat atau media digital yang relevan"
-  },
-  "lkpd": {
-    "judul": "Judul Lembar Kerja Peserta Didik",
-    "tujuan": "Tujuan LKPD",
-    "alatBahan": "Alat dan bahan yang dibutuhkan",
-    "langkahKerja": ["Langkah 1", "Langkah 2"],
-    "soalTugas": ["Soal atau tugas 1", "Soal atau tugas 2"]
-  }
+  "identitas": { "elemen": "...", "materi": "...", "model": "...", "pendekatan": "...", "metode": "...", "media": "...", "sumber": "...", "karakteristik": "...", "target": "...", "sarana": "..." },
+  "komponenInti": { "cp": "...", "tp": "...", "atp": "...", "pemahamanBermakna": "...", "pertanyaanPemantik": ["..."] },
+  "diagnostik": { "deskripsi": "...", "instrumenKognitif": "...", "instrumenNonKognitif": "..." },
+  "pembelajaranMendalam": "Deskripsi implementasi 8,3,3,4...",
+  "langkahPembelajaran": [
+    { "pertemuan": 1, "pendahuluan": "...", "inti": "...", "penutup": "...", "waktu": "..." }
+  ],
+  "asesmen": { "jenis": "...", "deskripsi": "...", "instrumen": "...", "rubrik": "..." },
+  "pengayaanRemedial": { "pengayaan": "...", "remedial": "..." },
+  "refleksi": { "guru": ["..."], "siswa": ["..."] },
+  "lkpd": { "judul": "...", "tujuan": "...", "petunjuk": "...", "alat": "...", "langkah": ["..."], "tugas": "...", "soal": ["..."] },
+  "bacaanGlosariumPustaka": { "bacaanGuru": "...", "bacaanSiswa": "...", "glosarium": "...", "pustaka": "..." },
+  "lampiran": "...",
+  "validasi": [
+    { "aspek": "...", "status": "...", "catatan": "..." }
+  ]
 }
-`;
 
+PASTIKAN KONTEN SANGAT RINCI DAN SIAP CETAK.`;
+      
       let text = '';
-      let retries = 3;
-      let delay = 42000;
+      let retries = 5;
+      let delay = 3000;
       let usedModel = 'gemini-3.6-flash'; 
       
       while (retries > 0) {
@@ -182,28 +218,31 @@ Format balasan berupa JSON dengan struktur persis seperti berikut (Hanya output 
           const response = await ai.models.generateContent({
             model: usedModel,
             contents: prompt,
+            config: {
+              responseMimeType: "application/json"
+            }
           });
           
           text = response.text || '';
-          if (text.startsWith('\`\`\`json')) {
-            text = text.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '');
+          
+          if (text.startsWith('```json')) {
+            text = text.replace(/```json/g, '').replace(/```/g, '');
           }
           text = text.trim();
-          if (text.endsWith('\`\`\`')) {
+          if (text.endsWith('```')) {
             text = text.slice(0, -3).trim();
-          }
-          if (!text.startsWith('{')) {
-             text = text.substring(text.indexOf('{'));
-          }
-          if (!text.endsWith('}')) {
-             text = text.substring(0, text.lastIndexOf('}') + 1);
           }
           
           JSON.parse(text); 
           break;
         } catch (error: any) {
           console.error(`Gemini Modul Ajar Error (${retries} retries left, model: ${usedModel}):`, error);
-          if ((error?.status === 429 || error?.status === 503 || error?.message?.includes('429') || error?.message?.includes('503') || error?.status === 'RESOURCE_EXHAUSTED') && retries > 1) {
+          if ((error?.status === 429 || error?.message?.includes('429') || error?.status === 'RESOURCE_EXHAUSTED' || error?.status === 503 || error?.status === 404 || error?.message?.includes('not found')) && retries > 1) {
+            // Cycle through stable models
+            const fallbackModels = ['gemini-3.6-flash', 'gemini-flash-latest', 'gemini-3.1-flash-lite'];
+            const currentIdx = fallbackModels.indexOf(usedModel);
+            usedModel = fallbackModels[currentIdx === -1 ? 0 : (currentIdx + 1) % fallbackModels.length];
+
             await new Promise(resolve => setTimeout(resolve, delay));
             delay *= 1.5;
             retries--;

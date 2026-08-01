@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { useStore } from '../store/useStore';
 import { Download, FileText } from 'lucide-react';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType } from 'docx';
@@ -21,7 +21,7 @@ const holidays = [
 ];
 
 export default function EffectiveDays() {
-  const { user, calendarData, schedules: storeSchedules } = useStore();
+  const { user, profile, calendarData, schedules: storeSchedules } = useStore();
   const [schedules, setSchedules] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
@@ -125,6 +125,13 @@ export default function EffectiveDays() {
               new TextRun({ text: `Hari Efektif Belajar - Kelas ${selectedGrade}`, bold: true, size: 28 }),
             ],
             alignment: AlignmentType.CENTER,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2026/2027'}`, size: 24 }),
+            ],
+            alignment: AlignmentType.CENTER,
             spacing: { after: 200 }
           }),
           new Paragraph({
@@ -160,7 +167,7 @@ export default function EffectiveDays() {
         <div className="flex justify-between items-end mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Hari Efektif Belajar</h1>
-            <p className="text-slate-500 text-sm">Tabel perhitungan hari efektif per kelas pada tahun pelajaran 2026-2027.</p>
+            <p className="text-slate-500 text-sm">Tabel perhitungan hari efektif per kelas pada tahun pelajaran {profile?.tahunPelajaran || '2026/2027'}.</p>
           </div>
           <button 
             onClick={generateDoc}

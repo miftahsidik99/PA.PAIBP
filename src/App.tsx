@@ -10,7 +10,11 @@ import Schedule from './pages/Schedule';
 import EffectiveDays from './pages/EffectiveDays';
 import Prota from './pages/Prota';
 import ModulAjar from './pages/ModulAjar';
+import ModulAjarHistory from './pages/ModulAjarHistory';
 import AcademicCalendar from './pages/AcademicCalendar';
+import DaftarSiswa from './pages/DaftarSiswa';
+import Presensi from './pages/Presensi';
+import KKTP from './pages/KKTP';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile } = useStore();
@@ -34,11 +38,15 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="/daftar-siswa" element={<ProtectedRoute><DaftarSiswa /></ProtectedRoute>} />
         <Route path="/academic-calendar" element={<ProtectedRoute><AcademicCalendar /></ProtectedRoute>} />
         <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
         <Route path="/effective-days" element={<ProtectedRoute><EffectiveDays /></ProtectedRoute>} />
+        <Route path="/presensi" element={<ProtectedRoute><Presensi /></ProtectedRoute>} />
         <Route path="/prota" element={<ProtectedRoute><Prota /></ProtectedRoute>} />
         <Route path="/modul-ajar" element={<ProtectedRoute><ModulAjar /></ProtectedRoute>} />
+        <Route path="/modul-ajar-history" element={<ProtectedRoute><ModulAjarHistory /></ProtectedRoute>} />
+        <Route path="/kktp" element={<ProtectedRoute><KKTP /></ProtectedRoute>} />
       </Routes>
     </Router>
   );
