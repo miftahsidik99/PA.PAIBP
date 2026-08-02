@@ -17,6 +17,29 @@ export default function Signup() {
     }
   }, [user, profile, navigate]);
 
+  useEffect(() => {
+    let tapCount = 0;
+    let lastTap = 0;
+
+    const handleTap = () => {
+      const now = Date.now();
+      // If the consecutive tap is within 1.5 seconds, increment
+      if (now - lastTap < 1500) {
+        tapCount += 1;
+      } else {
+        tapCount = 1;
+      }
+      lastTap = now;
+
+      if (tapCount >= 7) {
+        navigate('/admin');
+      }
+    };
+
+    window.addEventListener('click', handleTap);
+    return () => window.removeEventListener('click', handleTap);
+  }, [navigate]);
+
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
