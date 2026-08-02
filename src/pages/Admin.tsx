@@ -95,7 +95,7 @@ export default function Admin() {
           </div>
           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-4 py-2 rounded-2xl border border-emerald-100 text-sm font-semibold">
             <Award size={18} />
-            Bypass Mode Aktif (CTRL+OP)
+            Bypass Mode Aktif (CTRL+ALT+I+P)
           </div>
         </div>
 

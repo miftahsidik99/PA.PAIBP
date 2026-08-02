@@ -34,16 +34,39 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   React.useEffect(() => {
+    const pressedKeys = new Set<string>();
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Bypass shortcut: CTRL + OP (Option is Alt on macOS)
-      // Let's support Ctrl + Alt/Option, or Ctrl + Shift + O/P, or Ctrl + O/P
-      if (e.ctrlKey && (e.altKey || e.key?.toLowerCase() === 'o' || e.key?.toLowerCase() === 'p')) {
+      pressedKeys.add(e.key.toLowerCase());
+      
+      const hasCtrl = e.ctrlKey || pressedKeys.has('control');
+      const hasAlt = e.altKey || pressedKeys.has('alt');
+      const hasI = pressedKeys.has('i');
+      const hasP = pressedKeys.has('p');
+      
+      if (hasCtrl && hasAlt && hasI && hasP) {
         e.preventDefault();
         window.location.href = '/admin';
       }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      pressedKeys.delete(e.key.toLowerCase());
+    };
+
+    const handleBlur = () => {
+      pressedKeys.clear();
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+    };
   }, []);
 
   return (
