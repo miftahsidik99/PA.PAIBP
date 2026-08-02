@@ -2,16 +2,26 @@ import { useState } from 'react';
 import Layout from '../components/Layout';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../store/useStore';
-import { FileText, Download, Trash2, Eye, ArrowLeft, Clock, CheckCircle2 } from 'lucide-react';
+import { FileText, Download, Trash2, ArrowLeft, Clock, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, BorderStyle, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
 import { useNavigate } from 'react-router-dom';
+import { format } from 'date-fns';
+import { id as localeId } from 'date-fns/locale';
+
+const GRADES = [1, 2, 3, 4, 5, 6];
+
+const getRandomColor = () => {
+  const h = Math.floor(Math.random() * 360);
+  return `hsla(${h}, 70%, 85%, 0.8)`;
+};
 
 export default function ModulAjarHistory() {
   const { modulAjarHistories, clearModulAjarHistories, deleteModulAjarHistory, profile } = useStore();
   const navigate = useNavigate();
 
-  const [previewItem, setPreviewItem] = useState<any | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<number>(1);
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
   const handleDownloadDocx = async (item: any) => {
     try {
@@ -209,6 +219,8 @@ export default function ModulAjarHistory() {
     }
   };
 
+  const filteredHistories = modulAjarHistories.filter(item => item.grade === selectedGrade);
+
   return (
     <Layout>
       <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -216,13 +228,13 @@ export default function ModulAjarHistory() {
           <div>
             <button 
               onClick={() => navigate('/modul-ajar')}
-              className="inline-flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl mb-3 hover:bg-emerald-100 transition-colors"
+              className="inline-flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl mb-3 hover:bg-emerald-100 transition-colors cursor-pointer"
             >
               <ArrowLeft size={16} />
               Kembali ke Pembuat Modul Ajar
             </button>
             <h1 className="text-2xl font-bold text-slate-900">Riwayat Modul Ajar</h1>
-            <p className="text-slate-500 text-sm mt-1">Kelola, pratinjau, dan unduh kembali Modul Ajar yang telah Anda buat sebelumnya.</p>
+            <p className="text-slate-500 text-sm mt-1">Pratinjau, kelola, dan unduh kembali Modul Ajar yang telah dibuat per kelas.</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -242,171 +254,170 @@ export default function ModulAjarHistory() {
           </div>
         </div>
 
+        {/* Grade Navigation Tabs */}
+        <div className="flex flex-wrap gap-2 bg-white/40 border border-white/60 backdrop-blur-md p-2 rounded-2xl shadow-sm">
+          {GRADES.map(grade => {
+            const count = modulAjarHistories.filter(h => h.grade === grade).length;
+            const isSelected = selectedGrade === grade;
+            return (
+              <button
+                key={grade}
+                onClick={() => setSelectedGrade(grade)}
+                className={`flex-1 min-w-[100px] py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  isSelected 
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-200' 
+                    : 'text-slate-600 hover:bg-white/60'
+                }`}
+              >
+                <span>Kelas {grade}</span>
+                {count > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${isSelected ? 'bg-emerald-700 text-white' : 'bg-slate-200 text-slate-700'}`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
         {/* History List */}
-        {modulAjarHistories.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {modulAjarHistories.map((item) => (
-              <motion.div
-                key={item.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white/60 border border-white/80 backdrop-blur-xl rounded-3xl p-6 shadow-xl shadow-slate-200/50 flex flex-col justify-between space-y-4"
-              >
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">
-                      Kelas {item.grade}
-                    </span>
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <Clock size={12} />
-                      {new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  </div>
+        <div className="space-y-4">
+          {filteredHistories.length > 0 ? (
+            filteredHistories.map((item) => {
+              const isExpanded = expandedItem === item.id;
+              const cardColor = getRandomColor();
+              return (
+                <div key={item.id} className="bg-white/40 border border-white/60 backdrop-blur-md rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+                  <div className="p-5 flex items-center justify-between">
+                    <div 
+                      className="flex items-center gap-4 cursor-pointer flex-1"
+                      onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                    >
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-slate-800 font-bold text-xs shadow-sm shrink-0" style={{ backgroundColor: cardColor }}>
+                        {format(new Date(item.createdAt), 'dd MMM')}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-base">
+                          {item.data?.identitas?.materi || `Modul Ajar Kelas ${item.grade}`}
+                        </h3>
+                        <p className="text-xs text-slate-500 flex items-center gap-2 mt-1">
+                          <span className="flex items-center gap-1"><Clock size={12} /> {format(new Date(item.createdAt), "EEEE, d MMMM yyyy", { locale: localeId })}</span>
+                          <span>•</span>
+                          <strong className="text-emerald-700">Karakteristik: {item.karakteristik}</strong>
+                        </p>
+                      </div>
+                    </div>
 
-                  <h3 className="font-bold text-slate-800 text-base mb-2 line-clamp-1">
-                    {item.data?.identitas?.materi || `Modul Ajar Kelas ${item.grade}`}
-                  </h3>
+                    <div className="flex items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDocx(item)}
+                        className="flex items-center gap-1.5 bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm shadow-emerald-200 cursor-pointer"
+                      >
+                        <Download size={16} />
+                        Unduh Word
+                      </button>
 
-                  <div className="space-y-1 mb-3">
-                    <p className="text-xs font-semibold text-slate-500">ATP yang Digunakan ({item.atps?.length || 0}):</p>
-                    <div className="max-h-24 overflow-y-auto space-y-1 pr-1">
-                      {item.atps?.map((atp, idx) => (
-                        <div key={idx} className="text-xs text-slate-600 bg-white/80 px-2.5 py-1 rounded-xl border border-slate-100 flex items-start gap-1.5">
-                          <CheckCircle2 size={12} className="text-emerald-600 shrink-0 mt-0.5" />
-                          <span className="line-clamp-1">{atp}</span>
-                        </div>
-                      ))}
+                      <button
+                        type="button"
+                        onClick={() => deleteModulAjarHistory(item.id)}
+                        className="p-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 transition-all cursor-pointer"
+                        title="Hapus Riwayat"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+                        className="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all cursor-pointer"
+                      >
+                        {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                      </button>
                     </div>
                   </div>
 
-                  <p className="text-xs text-slate-500 font-medium">Karakteristik: <strong className="text-slate-700">{item.karakteristik}</strong></p>
-                </div>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div 
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        exit={{ height: 0 }}
+                        className="overflow-hidden border-t border-white/20 bg-white/20"
+                      >
+                        <div className="p-6 space-y-6 text-sm text-slate-700">
+                          <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <p className="text-xs text-slate-500 font-semibold">Elemen</p>
+                              <p className="font-bold text-slate-800">{item.data?.identitas?.elemen || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500 font-semibold">Model Pembelajaran</p>
+                              <p className="font-bold text-slate-800">{item.data?.identitas?.model || '-'}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-slate-500 font-semibold">Jumlah ATP Digunakan</p>
+                              <p className="font-bold text-emerald-700">{item.atps?.length || 0} ATP</p>
+                            </div>
+                          </div>
 
-                <div className="flex items-center gap-2 pt-3 border-t border-slate-200/60">
-                  <button
-                    onClick={() => setPreviewItem(item)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition-colors cursor-pointer shadow-sm"
-                  >
-                    <Eye size={14} className="text-emerald-600" />
-                    Pratinjau
-                  </button>
+                          <div className="space-y-2">
+                            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider text-slate-400">ATP yang Digunakan:</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {item.atps?.map((atp: string, idx: number) => (
+                                <div key={idx} className="bg-white/60 p-3 rounded-2xl border border-slate-100 flex items-start gap-2">
+                                  <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                                  <span className="text-xs text-slate-700 font-medium">{atp}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
 
-                  <button
-                    onClick={() => handleDownloadDocx(item)}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors cursor-pointer shadow-sm shadow-emerald-200"
-                  >
-                    <Download size={14} />
-                    Unduh Word
-                  </button>
+                          <div className="space-y-3">
+                            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider text-slate-400">Tujuan Pembelajaran</h4>
+                            <div className="bg-white/60 p-4 rounded-2xl border border-slate-100">
+                              <p className="whitespace-pre-line text-xs text-slate-700">{item.data?.komponenInti?.tp || '-'}</p>
+                            </div>
+                          </div>
 
-                  <button
-                    onClick={() => deleteModulAjarHistory(item.id)}
-                    title="Hapus"
-                    className="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white/40 border border-white/60 backdrop-blur-xl rounded-3xl p-16 text-center shadow-xl shadow-slate-200/50">
-            <FileText className="w-16 h-16 text-emerald-200 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-slate-800">Belum Ada Riwayat Modul Ajar</h3>
-            <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-              Modul Ajar yang Anda buat dari halaman Pembuat Modul Ajar akan otomatis tersimpan di sini agar dapat dipratinjau dan diunduh kembali kapan saja.
-            </p>
-            <button
-              onClick={() => navigate('/modul-ajar')}
-              className="mt-6 inline-flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all cursor-pointer"
-            >
-              Mulai Buat Modul Ajar
-            </button>
-          </div>
-        )}
-
-        {/* Preview Modal */}
-        <AnimatePresence>
-          {previewItem && (
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-              >
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <div>
-                    <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">
-                      Kelas {previewItem.grade}
-                    </span>
-                    <h2 className="text-xl font-bold text-slate-900 mt-2">
-                      {previewItem.data?.identitas?.materi || 'Pratinjau Modul Ajar'}
-                    </h2>
-                  </div>
-                  <button
-                    onClick={() => setPreviewItem(null)}
-                    className="text-slate-400 hover:text-slate-600 font-bold text-lg p-2"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-700">
-                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 space-y-2">
-                    <p><strong>Elemen:</strong> {previewItem.data?.identitas?.elemen}</p>
-                    <p><strong>Karakteristik:</strong> {previewItem.karakteristik}</p>
-                    <p><strong>Model Pembelajaran:</strong> {previewItem.data?.identitas?.model}</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-emerald-800 text-base mb-2">Tujuan Pembelajaran</h3>
-                    <p className="whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100">{previewItem.data?.komponenInti?.tp}</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-emerald-800 text-base mb-2">Pemahaman Bermakna</h3>
-                    <p className="whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-100">{previewItem.data?.komponenInti?.pemahamanBermakna}</p>
-                  </div>
-
-                  <div>
-                    <h3 className="font-bold text-emerald-800 text-base mb-2">Langkah Pembelajaran</h3>
-                    <div className="space-y-4">
-                      {previewItem.data?.langkahPembelajaran?.map((lp: any, i: number) => (
-                        <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-2">
-                          <h4 className="font-bold text-slate-800">Pertemuan {lp.pertemuan} ({lp.waktu})</h4>
-                          <p><strong>Pendahuluan:</strong> {lp.pendahuluan}</p>
-                          <p><strong>Kegiatan Inti:</strong> {lp.inti}</p>
-                          <p><strong>Penutup:</strong> {lp.penutup}</p>
+                          <div className="space-y-3">
+                            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider text-slate-400">Langkah Pembelajaran</h4>
+                            <div className="space-y-3">
+                              {item.data?.langkahPembelajaran?.map((lp: any, i: number) => (
+                                <div key={i} className="bg-white/60 p-4 rounded-2xl border border-slate-100 space-y-2">
+                                  <h5 className="font-bold text-emerald-800 text-xs">Pertemuan {lp.pertemuan} ({lp.waktu})</h5>
+                                  <div className="text-xs space-y-1 text-slate-600">
+                                    <p><strong>Pendahuluan:</strong> {lp.pendahuluan}</p>
+                                    <p><strong>Kegiatan Inti:</strong> {lp.inti}</p>
+                                    <p><strong>Penutup:</strong> {lp.penutup}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-
-                <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                  <button
-                    onClick={() => setPreviewItem(null)}
-                    className="px-4 py-2.5 rounded-xl font-bold text-slate-600 hover:bg-slate-200/60 transition-colors text-xs"
-                  >
-                    Tutup
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleDownloadDocx(previewItem);
-                      setPreviewItem(null);
-                    }}
-                    className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200"
-                  >
-                    <Download size={14} />
-                    Unduh Dokumen Word
-                  </button>
-                </div>
-              </motion.div>
+              );
+            })
+          ) : (
+            <div className="bg-white/40 border border-white/60 backdrop-blur-md rounded-3xl p-16 text-center">
+              <FileText className="w-16 h-16 text-emerald-200 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-800">Belum Ada Riwayat Modul Ajar</h3>
+              <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                Belum ada riwayat Modul Ajar yang tersimpan untuk Kelas {selectedGrade}. Buat dan simpan Modul Ajar baru dari halaman Pembuat Modul Ajar.
+              </p>
+              <button
+                onClick={() => navigate('/modul-ajar')}
+                className="mt-6 inline-flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all cursor-pointer"
+              >
+                Mulai Buat Modul Ajar
+              </button>
             </div>
           )}
-        </AnimatePresence>
+        </div>
       </div>
     </Layout>
   );

@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { user, profile, login } = useStore();
+  const { user, profile, verifyAndLogin } = useStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -23,8 +23,15 @@ export default function Login() {
       alert("Masukkan username dan password.");
       return;
     }
-    // Simple mock login handling:
-    login(username.trim().toLowerCase());
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    const result = verifyAndLogin(cleanUsername, cleanPassword);
+    if (result === 'not_found') {
+      alert("Akun tidak ditemukan. Silakan Daftar Akun baru.");
+    } else if (result === 'invalid_password') {
+      alert("Kata sandi salah. Silakan coba lagi atau hubungi Admin.");
+    }
   };
 
   return (

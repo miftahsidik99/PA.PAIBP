@@ -15,9 +15,12 @@ import {
 import { saveAs } from 'file-saver';
 
 export default function DaftarSiswa() {
-  const { user, profile, students: storeStudents, setStudents } = useStore();
+  const { user, profile, students: storeStudents, setStudents, rombelConfig, setRombelConfig } = useStore();
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [rows, setRows] = useState<Student[]>([]);
+  const [jumlahRombel, setJumlahRombel] = useState<number>(1);
+  const [rombelLabels, setRombelLabels] = useState<string[]>([]);
+  const [selectedRombelFilter, setSelectedRombelFilter] = useState<string>('all');
   const [isSaving, setIsSaving] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPasteModalOpen, setIsPasteModalOpen] = useState(false);
@@ -27,9 +30,42 @@ export default function DaftarSiswa() {
   const [isExporting, setIsExporting] = useState(false);
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
 
+  // Sync rombel config when grade changes
+  useEffect(() => {
+    const config = rombelConfig[selectedGrade];
+    if (config) {
+      setJumlahRombel(config.jumlahRombel);
+      setRombelLabels(config.labels);
+    } else {
+      setJumlahRombel(1);
+      const defaultLabels = [`Kelas ${selectedGrade}A`];
+      setRombelLabels(defaultLabels);
+      setRombelConfig(selectedGrade, { jumlahRombel: 1, labels: defaultLabels });
+    }
+    setSelectedRombelFilter('all');
+  }, [selectedGrade, rombelConfig]);
+
+  const handleJumlahRombelChange = (count: number) => {
+    const newCount = Math.max(1, Math.min(6, count));
+    setJumlahRombel(newCount);
+    const newLabels = Array.from({ length: newCount }, (_, i) => {
+      return rombelLabels[i] || `Kelas ${selectedGrade}${String.fromCharCode(65 + i)}`;
+    });
+    setRombelLabels(newLabels);
+    setRombelConfig(selectedGrade, { jumlahRombel: newCount, labels: newLabels });
+  };
+
+  const handleLabelChange = (index: number, val: string) => {
+    const newLabels = [...rombelLabels];
+    newLabels[index] = val;
+    setRombelLabels(newLabels);
+    setRombelConfig(selectedGrade, { jumlahRombel, labels: newLabels });
+  };
+
   // Initialize or load students for selected grade
   useEffect(() => {
     const loaded = storeStudents[selectedGrade] || [];
+    const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
     if (loaded.length > 0) {
       setRows(loaded);
     } else {
@@ -39,26 +75,29 @@ export default function DaftarSiswa() {
         nama: '',
         nisn: '',
         jenisKelamin: '',
-        kelas: `Kelas ${selectedGrade}`,
+        agama: 'Islam',
+        kelas: defaultKelas,
         tanggalLahir: '',
         alamat: '',
         foto: ''
       }));
       setRows(initialRows);
     }
-  }, [selectedGrade, storeStudents]);
+  }, [selectedGrade, storeStudents, rombelLabels]);
 
   const handleGradeChange = (grade: number) => {
     setSelectedGrade(grade);
   };
 
   const handleAddRow = () => {
+    const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
     const newRow: Student = {
       id: `row-${Date.now()}-${rows.length}`,
       nama: '',
       nisn: '',
       jenisKelamin: '',
-      kelas: `Kelas ${selectedGrade}`,
+      agama: 'Islam',
+      kelas: defaultKelas,
       tanggalLahir: '',
       alamat: '',
       foto: ''
@@ -67,12 +106,14 @@ export default function DaftarSiswa() {
   };
 
   const handleAddMultipleRows = (count: number) => {
+    const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
     const newRows: Student[] = Array.from({ length: count }, (_, i) => ({
       id: `row-${Date.now()}-${rows.length + i}`,
       nama: '',
       nisn: '',
       jenisKelamin: '',
-      kelas: `Kelas ${selectedGrade}`,
+      agama: 'Islam',
+      kelas: defaultKelas,
       tanggalLahir: '',
       alamat: '',
       foto: ''
@@ -92,6 +133,7 @@ export default function DaftarSiswa() {
         nama: '',
         nisn: '',
         jenisKelamin: '',
+        agama: 'Islam',
         kelas: `Kelas ${selectedGrade}`,
         tanggalLahir: '',
         alamat: '',
@@ -109,6 +151,7 @@ export default function DaftarSiswa() {
         nama: '',
         nisn: '',
         jenisKelamin: '',
+        agama: 'Islam',
         kelas: `Kelas ${selectedGrade}`,
         tanggalLahir: '',
         alamat: '',
@@ -566,6 +609,82 @@ export default function DaftarSiswa() {
           ))}
         </div>
 
+        {/* Rombel Configuration Card */}
+        <div className="bg-white/60 border border-white/80 backdrop-blur-md rounded-3xl p-6 mb-6 shadow-sm">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <div>
+              <h3 className="font-bold text-slate-800 text-base flex items-center gap-2">
+                <Layers size={18} className="text-emerald-600" />
+                Pengaturan Rombongan Belajar (Rombel) Kelas {selectedGrade}
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Tentukan jumlah rombel dan sesuaikan label setiap kelas (contoh: Kelas {selectedGrade}A, Kelas {selectedGrade}B).
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-bold text-slate-700">Jumlah Rombel:</label>
+              <select
+                value={jumlahRombel}
+                onChange={(e) => handleJumlahRombelChange(parseInt(e.target.value))}
+                className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              >
+                {[1, 2, 3, 4, 5, 6].map(n => (
+                  <option key={n} value={n}>{n} Rombel</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            {rombelLabels.map((label, idx) => (
+              <div key={idx} className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-500">Rombel {idx + 1} Label:</label>
+                <input
+                  type="text"
+                  value={label}
+                  onChange={(e) => handleLabelChange(idx, e.target.value)}
+                  placeholder={`Kelas ${selectedGrade}${String.fromCharCode(65 + idx)}`}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Filter by Rombel */}
+          {rombelLabels.length > 1 && (
+            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-slate-500 mr-2">Filter Tampilan Rombel:</span>
+              <button
+                onClick={() => setSelectedRombelFilter('all')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  selectedRombelFilter === 'all'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                Semua Rombel ({rows.length})
+              </button>
+              {rombelLabels.map((lbl) => {
+                const count = rows.filter(r => r.kelas === lbl).length;
+                return (
+                  <button
+                    key={lbl}
+                    onClick={() => setSelectedRombelFilter(lbl)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedRombelFilter === lbl
+                        ? 'bg-emerald-600 text-white shadow-sm'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {lbl} ({count})
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         {/* Table Card */}
         <motion.div
           key={selectedGrade}
@@ -578,9 +697,9 @@ export default function DaftarSiswa() {
               <span className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-bold">
                 {selectedGrade}
               </span>
-              <span>Daftar Siswa Kelas {selectedGrade}</span>
+              <span>Daftar Siswa Kelas {selectedGrade} {selectedRombelFilter !== 'all' ? `(${selectedRombelFilter})` : ''}</span>
               <span className="text-xs text-slate-500 font-normal">
-                ({rows.length} baris tersedia)
+                ({rows.filter(r => selectedRombelFilter === 'all' || r.kelas === selectedRombelFilter).length} baris)
               </span>
             </div>
 
@@ -598,7 +717,8 @@ export default function DaftarSiswa() {
                   <th className="p-3.5 font-bold uppercase tracking-wider min-w-[200px] text-xs">Nama Siswa</th>
                   <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">NISN</th>
                   <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Jenis Kelamin</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-28 text-center text-xs">Kelas</th>
+                  <th className="p-3.5 font-bold uppercase tracking-wider w-32 text-center text-xs">Agama</th>
+                  <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Rombel / Kelas</th>
                   <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Tanggal Lahir</th>
                   <th className="p-3.5 font-bold uppercase tracking-wider min-w-[220px] text-xs">Alamat</th>
                   <th className="p-3.5 font-bold uppercase tracking-wider w-32 text-center text-xs">Foto (3x4)</th>
@@ -606,7 +726,9 @@ export default function DaftarSiswa() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 text-slate-700">
-                {rows.map((row, idx) => (
+                {rows
+                  .filter(row => selectedRombelFilter === 'all' || row.kelas === selectedRombelFilter)
+                  .map((row, idx) => (
                   <tr
                     key={row.id}
                     className="hover:bg-emerald-50/30 transition-colors group"
@@ -654,15 +776,34 @@ export default function DaftarSiswa() {
                       </select>
                     </td>
 
+                    {/* Agama */}
+                    <td className="p-2">
+                      <select
+                        value={row.agama || 'Islam'}
+                        onChange={(e) => handleRowChange(row.id, 'agama', e.target.value)}
+                        onPaste={(e: any) => handleInputPaste(e, idx, 'agama')}
+                        className="w-full px-3 py-2 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-semibold text-slate-800"
+                      >
+                        <option value="Islam">Islam</option>
+                        <option value="Kristen">Kristen</option>
+                        <option value="Katolik">Katolik</option>
+                        <option value="Hindu">Hindu</option>
+                        <option value="Buddha">Buddha</option>
+                        <option value="Konghucu">Konghucu</option>
+                      </select>
+                    </td>
+
                     {/* Kelas */}
                     <td className="p-2">
-                      <input
-                        type="text"
-                        value={row.kelas}
+                      <select
+                        value={row.kelas || rombelLabels[0] || `Kelas ${selectedGrade}A`}
                         onChange={(e) => handleRowChange(row.id, 'kelas', e.target.value)}
-                        onPaste={(e) => handleInputPaste(e, idx, 'kelas')}
-                        className="w-full px-2 py-2 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm text-slate-700"
-                      />
+                        className="w-full px-3 py-2 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-semibold text-slate-800 cursor-pointer"
+                      >
+                        {rombelLabels.map((lbl) => (
+                          <option key={lbl} value={lbl}>{lbl}</option>
+                        ))}
+                      </select>
                     </td>
 
                     {/* Tanggal Lahir */}

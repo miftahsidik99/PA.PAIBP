@@ -29,6 +29,7 @@ export interface Student {
   nama: string;
   nisn: string;
   jenisKelamin?: string; // 'L' | 'P' | 'Laki-laki' | 'Perempuan' | ''
+  agama?: string;
   kelas: string;
   tanggalLahir: string;
   alamat: string;
@@ -86,6 +87,47 @@ export interface ModulAjarHistoryItem {
   data: any;
 }
 
+export interface JurnalItem {
+  grade: number;
+  jadwalHari: string;
+  rombel: string;
+  minggu1: string;
+  minggu2: string;
+  minggu3: string;
+  minggu4: string;
+  minggu5: string;
+  tuntas: 'Ya' | 'Tidak';
+}
+
+export interface JurnalStateData {
+  bulan: string;
+  pengawasNama: string;
+  pengawasNip: string;
+  items: Record<number, JurnalItem>;
+}
+
+export interface JurnalEntry {
+  id: string;
+  tanggal: string;
+  jamPelajaran: string;
+  kelas: number;
+  rombel: string;
+  mataPelajaran: string;
+  atp: string;
+  kehadiran: { hadir?: number; sakit: number; izin: number; alpa: number };
+  metode: string;
+  catatan: string;
+}
+
+export interface UpgradeRequest {
+  id: string;
+  namaLengkap: string;
+  noWhatsapp: string;
+  username: string;
+  timestamp: number;
+  status: 'pending' | 'approved';
+}
+
 export interface UserData {
   profile: UserProfile | null;
   calendarData: CalendarData | null;
@@ -97,11 +139,18 @@ export interface UserData {
   students?: Record<number, Student[]>;
   attendance?: AttendanceData[];
   modulAjarHistories?: ModulAjarHistoryItem[];
+  rombelConfig?: Record<number, { jumlahRombel: number; labels: string[] }>;
+  jurnalState?: JurnalStateData;
+  jurnalEntries?: Record<number, JurnalEntry[]>;
+  password?: string;
+  label?: 'Full Time' | 'Demo';
+  signupTime?: number;
 }
 
 interface AppState {
   currentUser: string | null;
   usersData: Record<string, UserData>;
+  upgradeRequests?: UpgradeRequest[];
   
   // Current user's active states
   user: { uid: string, displayName: string } | null;
@@ -114,10 +163,19 @@ interface AppState {
   atpBatches: Record<number, ATPBatch[]>;
   savedKktps: KKTPRecord[];
   modulAjarHistories: ModulAjarHistoryItem[];
+  rombelConfig: Record<number, { jumlahRombel: number; labels: string[] }>;
+  jurnalState: JurnalStateData;
+  jurnalEntries: Record<number, JurnalEntry[]>;
 
   // Actions
   login: (username: string) => void;
   logout: () => void;
+  registerUser: (username: string, password: string) => boolean;
+  verifyAndLogin: (username: string, password: string) => 'success' | 'invalid_password' | 'not_found';
+  adminResetPassword: (username: string, newPassword: string) => void;
+  adminSetLabel: (username: string, label: 'Full Time' | 'Demo') => void;
+  submitUpgradeRequest: (namaLengkap: string, noWhatsapp: string, username: string) => void;
+  adminApproveUpgrade: (requestId: string) => void;
   
   setProfile: (profile: UserProfile | null) => void;
   setCalendarData: (data: CalendarData | null) => void;
@@ -134,6 +192,9 @@ interface AppState {
   addModulAjarHistory: (item: ModulAjarHistoryItem) => void;
   clearModulAjarHistories: () => void;
   deleteModulAjarHistory: (id: string) => void;
+  setRombelConfig: (grade: number, config: { jumlahRombel: number; labels: string[] }) => void;
+  setJurnalState: (state: JurnalStateData) => void;
+  setJurnalEntries: (entries: Record<number, JurnalEntry[]>) => void;
 
   importData: (jsonData: string) => void;
   geminiApiKey: string | null;
@@ -150,7 +211,15 @@ const initialUserData: UserData = {
   savedKktps: [],
   students: {},
   attendance: [],
-  modulAjarHistories: []
+  modulAjarHistories: [],
+  rombelConfig: {},
+  jurnalState: {
+    bulan: 'JUNI 2026',
+    pengawasNama: '',
+    pengawasNip: '',
+    items: {}
+  },
+  jurnalEntries: {}
 };
 
 export const useStore = create<AppState>()(
@@ -158,6 +227,7 @@ export const useStore = create<AppState>()(
     (set, get) => ({
       currentUser: null,
       usersData: {},
+      upgradeRequests: [],
       user: null,
       profile: null,
       calendarData: null,
@@ -169,15 +239,159 @@ export const useStore = create<AppState>()(
       atpBatches: {},
       savedKktps: [],
       modulAjarHistories: [],
+      rombelConfig: {},
+      jurnalState: {
+        bulan: 'JUNI 2026',
+        pengawasNama: '',
+        pengawasNip: '',
+        items: {}
+      },
+      jurnalEntries: {},
       geminiApiKey: null,
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
 
+      registerUser: (username: string, password: string) => {
+        const state = get();
+        const normalized = username.trim().toLowerCase();
+        if (state.usersData[normalized]) {
+          return false;
+        }
+        const newUser: UserData = {
+          ...initialUserData,
+          password,
+          label: 'Demo',
+          signupTime: Date.now()
+        };
+        set({
+          usersData: {
+            ...state.usersData,
+            [normalized]: newUser
+          }
+        });
+        return true;
+      },
+
+      verifyAndLogin: (username: string, password: string) => {
+        const state = get();
+        const normalized = username.trim().toLowerCase();
+        const userData = state.usersData[normalized];
+        if (!userData) {
+          return 'not_found';
+        }
+        // If password exists, check it
+        if (userData.password && userData.password !== password) {
+          return 'invalid_password';
+        }
+
+        // Otherwise success, login
+        state.login(normalized);
+
+        // If password wasn't set, set it now
+        if (!userData.password) {
+          const updatedUsers = { ...get().usersData };
+          updatedUsers[normalized] = {
+            ...userData,
+            password
+          };
+          set({ usersData: updatedUsers });
+        }
+        return 'success';
+      },
+
+      adminResetPassword: (username: string, newPassword: string) => {
+        const state = get();
+        const normalized = username.trim().toLowerCase();
+        const userData = state.usersData[normalized];
+        if (userData) {
+          set({
+            usersData: {
+              ...state.usersData,
+              [normalized]: {
+                ...userData,
+                password: newPassword
+              }
+            }
+          });
+        }
+      },
+
+      adminSetLabel: (username: string, label: 'Full Time' | 'Demo') => {
+        const state = get();
+        const normalized = username.trim().toLowerCase();
+        const userData = state.usersData[normalized];
+        if (userData) {
+          set({
+            usersData: {
+              ...state.usersData,
+              [normalized]: {
+                ...userData,
+                label,
+                signupTime: label === 'Demo' ? Date.now() : userData.signupTime
+              }
+            }
+          });
+        }
+      },
+
+      submitUpgradeRequest: (namaLengkap: string, noWhatsapp: string, username: string) => {
+        const state = get();
+        const requests = state.upgradeRequests || [];
+        const newRequest: UpgradeRequest = {
+          id: Date.now().toString(),
+          namaLengkap,
+          noWhatsapp,
+          username: username.trim().toLowerCase(),
+          timestamp: Date.now(),
+          status: 'pending'
+        };
+        set({
+          upgradeRequests: [...requests, newRequest]
+        });
+      },
+
+      adminApproveUpgrade: (requestId: string) => {
+        const state = get();
+        const requests = state.upgradeRequests || [];
+        const request = requests.find(r => r.id === requestId);
+        if (request) {
+          const updatedRequests = requests.map(r => r.id === requestId ? { ...r, status: 'approved' as const } : r);
+          const normalized = request.username.trim().toLowerCase();
+          const userData = state.usersData[normalized];
+          const updatedUsersData = { ...state.usersData };
+          if (userData) {
+            updatedUsersData[normalized] = {
+              ...userData,
+              label: 'Full Time'
+            };
+          }
+          set({
+            upgradeRequests: updatedRequests,
+            usersData: updatedUsersData
+          });
+        }
+      },
+
       login: (username: string) => {
         const state = get();
-        const userData = state.usersData[username] || { ...initialUserData };
+        const normalized = username.trim().toLowerCase();
+        let userData = state.usersData[normalized];
+        if (!userData) {
+          userData = { 
+            ...initialUserData,
+            label: 'Demo',
+            signupTime: Date.now()
+          };
+        } else {
+          if (!userData.label) {
+            userData = { ...userData, label: 'Demo' };
+          }
+          if (!userData.signupTime) {
+            userData = { ...userData, signupTime: Date.now() };
+          }
+        }
         set({
-          currentUser: username,
-          user: { uid: username, displayName: username },
+          currentUser: normalized,
+          user: { uid: normalized, displayName: normalized },
           profile: userData.profile,
           calendarData: userData.calendarData,
           schedules: userData.schedules,
@@ -188,9 +402,12 @@ export const useStore = create<AppState>()(
           atpBatches: userData.atpBatches || {},
           savedKktps: userData.savedKktps || [],
           modulAjarHistories: userData.modulAjarHistories || [],
+          rombelConfig: userData.rombelConfig || {},
+          jurnalState: userData.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+          jurnalEntries: userData.jurnalEntries || {},
           usersData: {
             ...state.usersData,
-            [username]: userData
+            [normalized]: userData
           }
         });
       },
@@ -209,6 +426,9 @@ export const useStore = create<AppState>()(
           atpBatches: {},
           savedKktps: [],
           modulAjarHistories: [],
+          rombelConfig: {},
+          jurnalState: { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+          jurnalEntries: {},
         });
       },
 
@@ -373,6 +593,43 @@ export const useStore = create<AppState>()(
           usersData: {
             ...state.usersData,
             [state.currentUser]: { ...state.usersData[state.currentUser], students }
+          }
+        });
+      },
+
+      setRombelConfig: (grade, config) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const newConfig = { ...state.rombelConfig, [grade]: config };
+        set({
+          rombelConfig: newConfig,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], rombelConfig: newConfig }
+          }
+        });
+      },
+
+      setJurnalState: (jurnalState) => {
+        const state = get();
+        if (!state.currentUser) return;
+        set({
+          jurnalState,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], jurnalState }
+          }
+        });
+      },
+
+      setJurnalEntries: (jurnalEntries) => {
+        const state = get();
+        if (!state.currentUser) return;
+        set({
+          jurnalEntries,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], jurnalEntries }
           }
         });
       },

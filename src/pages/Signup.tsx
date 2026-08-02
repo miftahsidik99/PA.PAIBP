@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore';
 
 export default function Signup() {
   const navigate = useNavigate();
-  const { user, profile, login } = useStore();
+  const { user, profile, registerUser, verifyAndLogin } = useStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -23,8 +23,17 @@ export default function Signup() {
       alert("Masukkan username dan password.");
       return;
     }
-    // Simple mock signup handling (same as login since it's local):
-    login(username.trim().toLowerCase());
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    const success = registerUser(cleanUsername, cleanPassword);
+    if (!success) {
+      alert("Username sudah terdaftar. Silakan gunakan username lain atau silakan Masuk.");
+      return;
+    }
+
+    // Login after successful signup
+    verifyAndLogin(cleanUsername, cleanPassword);
   };
 
   return (

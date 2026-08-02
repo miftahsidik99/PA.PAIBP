@@ -15,6 +15,8 @@ import AcademicCalendar from './pages/AcademicCalendar';
 import DaftarSiswa from './pages/DaftarSiswa';
 import Presensi from './pages/Presensi';
 import KKTP from './pages/KKTP';
+import Jurnal from './pages/Jurnal';
+import Admin from './pages/Admin';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, profile } = useStore();
@@ -31,6 +33,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Bypass shortcut: CTRL + OP (Option is Alt on macOS)
+      // Let's support Ctrl + Alt/Option, or Ctrl + Shift + O/P, or Ctrl + O/P
+      if (e.ctrlKey && (e.altKey || e.key?.toLowerCase() === 'o' || e.key?.toLowerCase() === 'p')) {
+        e.preventDefault();
+        window.location.href = '/admin';
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <Router>
       <Routes>
@@ -47,6 +62,8 @@ export default function App() {
         <Route path="/modul-ajar" element={<ProtectedRoute><ModulAjar /></ProtectedRoute>} />
         <Route path="/modul-ajar-history" element={<ProtectedRoute><ModulAjarHistory /></ProtectedRoute>} />
         <Route path="/kktp" element={<ProtectedRoute><KKTP /></ProtectedRoute>} />
+        <Route path="/jurnal" element={<ProtectedRoute><Jurnal /></ProtectedRoute>} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>
   );

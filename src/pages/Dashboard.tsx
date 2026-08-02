@@ -6,7 +6,7 @@ import { motion } from 'motion/react';
 import { Pencil, Check, X, Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { profile, setProfile, user } = useStore();
+  const { profile, setProfile, user, currentUser, usersData } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -21,6 +21,24 @@ export default function Dashboard() {
     tahunPelajaran: profile?.tahunPelajaran || '2026/2027',
   });
   
+  // Expiry / Countdown calculation for Demo users
+  const activeUser = currentUser ? usersData[currentUser] : null;
+  const isDemo = activeUser?.label === 'Demo';
+  const signupTime = activeUser?.signupTime || Date.now();
+  const expiryTime = signupTime + 24 * 60 * 60 * 1000;
+  
+  const [now, setNow] = useState(Date.now());
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const timeLeft = Math.max(0, expiryTime - now);
+  const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+  const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+  const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
 
   const handleEditToggle = () => {
     if (!isEditing) {
@@ -59,7 +77,48 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="p-8">
+      <div className="p-8 max-w-5xl mx-auto space-y-6">
+        {isDemo && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          >
+            <div>
+              <div className="flex items-center gap-2 text-amber-800 font-extrabold text-xs uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                Sisa Waktu Akses Demo Uji Coba (1x24 Jam)
+              </div>
+              <p className="text-slate-600 text-xs mt-1.5 leading-relaxed">
+                Anda sedang menggunakan versi <strong>Demo</strong>. Setelah hitung mundur di bawah ini habis, dashboard Anda akan otomatis dikunci. Dukung pengembang dengan memberikan donasi untuk membuka lisensi <strong>Full Time</strong> secara permanen.
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-4 bg-white/90 border border-amber-200/50 px-5 py-3 rounded-2xl shadow-sm self-stretch md:self-auto justify-center">
+              <div className="text-center min-w-[40px]">
+                <span className="block font-mono font-black text-2xl text-slate-800 tracking-tight leading-none">
+                  {String(hoursLeft).padStart(2, '0')}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Jam</span>
+              </div>
+              <span className="text-lg font-black text-amber-500 animate-pulse leading-none -translate-y-0.5">:</span>
+              <div className="text-center min-w-[40px]">
+                <span className="block font-mono font-black text-2xl text-slate-800 tracking-tight leading-none">
+                  {String(minutesLeft).padStart(2, '0')}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Menit</span>
+              </div>
+              <span className="text-lg font-black text-amber-500 animate-pulse leading-none -translate-y-0.5">:</span>
+              <div className="text-center min-w-[40px]">
+                <span className="block font-mono font-black text-2xl text-rose-600 tracking-tight leading-none">
+                  {String(secondsLeft).padStart(2, '0')}
+                </span>
+                <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold text-rose-400">Detik</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
