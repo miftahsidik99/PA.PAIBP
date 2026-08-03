@@ -268,6 +268,17 @@ export const useStore = create<AppState>()(
             [normalized]: newUser
           }
         });
+        
+        // Sync to Firestore
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'global_users', normalized), {
+            username: normalized,
+            password,
+            label: 'Demo',
+            signupTime: newUser.signupTime
+          });
+        }).catch(err => console.error(err));
+
         return true;
       },
 
@@ -312,6 +323,12 @@ export const useStore = create<AppState>()(
               }
             }
           });
+          
+          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+            updateDoc(doc(db, 'global_users', normalized), {
+              password: newPassword
+            }).catch(e => console.error(e));
+          });
         }
       },
 
@@ -320,15 +337,23 @@ export const useStore = create<AppState>()(
         const normalized = username.trim().toLowerCase();
         const userData = state.usersData[normalized];
         if (userData) {
+          const newSignupTime = label === 'Demo' ? Date.now() : userData.signupTime;
           set({
             usersData: {
               ...state.usersData,
               [normalized]: {
                 ...userData,
                 label,
-                signupTime: label === 'Demo' ? Date.now() : userData.signupTime
+                signupTime: newSignupTime
               }
             }
+          });
+          
+          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+            updateDoc(doc(db, 'global_users', normalized), {
+              label,
+              signupTime: newSignupTime
+            }).catch(e => console.error(e));
           });
         }
       },
@@ -346,6 +371,10 @@ export const useStore = create<AppState>()(
         };
         set({
           upgradeRequests: [...requests, newRequest]
+        });
+        
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'upgrade_requests', newRequest.id), newRequest).catch(e => console.error(e));
         });
       },
 
@@ -367,6 +396,13 @@ export const useStore = create<AppState>()(
           set({
             upgradeRequests: updatedRequests,
             usersData: updatedUsersData
+          });
+          
+          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+            updateDoc(doc(db, 'upgrade_requests', requestId), { status: 'approved' }).catch(e => console.error(e));
+            if (userData) {
+              updateDoc(doc(db, 'global_users', normalized), { label: 'Full Time' }).catch(e => console.error(e));
+            }
           });
         }
       },
@@ -441,6 +477,12 @@ export const useStore = create<AppState>()(
             ...state.usersData,
             [state.currentUser]: { ...state.usersData[state.currentUser], profile }
           }
+        });
+        
+        import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+          updateDoc(doc(db, 'global_users', state.currentUser!), {
+            profile
+          }).catch(e => console.error(e));
         });
       },
 

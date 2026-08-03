@@ -34,6 +34,78 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   React.useEffect(() => {
+    // Listen to Firebase and sync to useStore
+    let unsubscribeUsers = () => {};
+    let unsubscribeRequests = () => {};
+
+    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
+      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
+        const usersData = useStore.getState().usersData;
+        const updatedUsersData = { ...usersData };
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const normalized = doc.id;
+          if (updatedUsersData[normalized]) {
+            updatedUsersData[normalized] = {
+              ...updatedUsersData[normalized],
+              ...data
+            };
+          } else {
+            // New user from another device
+            updatedUsersData[normalized] = {
+              profile: data.profile || null,
+              calendarData: null,
+              schedules: {},
+              savedProtas: {},
+              generatedModulAtps: {},
+              atpBatches: {},
+              savedKktps: [],
+              students: {},
+              attendance: [],
+              modulAjarHistories: [],
+              rombelConfig: {},
+              jurnalState: {
+                bulan: 'JUNI 2026',
+                pengawasNama: '',
+                pengawasNip: '',
+                items: {}
+              },
+              jurnalEntries: {},
+              password: data.password,
+              label: data.label || 'Demo',
+              signupTime: data.signupTime || Date.now()
+            };
+          }
+        });
+        
+        // Push any purely local users to Firestore
+        import('./lib/firebase').then(({ setDoc, doc }) => {
+          Object.keys(usersData).forEach(localUser => {
+            if (!snapshot.docs.find(d => d.id === localUser)) {
+               setDoc(doc(db, 'global_users', localUser), {
+                 username: localUser,
+                 password: usersData[localUser].password || '',
+                 label: usersData[localUser].label || 'Demo',
+                 signupTime: usersData[localUser].signupTime || Date.now(),
+                 profile: usersData[localUser].profile || null
+               }).catch(e => console.error(e));
+            }
+          });
+        });
+        
+        useStore.setState({ usersData: updatedUsersData });
+      });
+
+      unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
+        const requests: any[] = [];
+        snapshot.forEach((doc) => {
+          requests.push(doc.data());
+        });
+        useStore.setState({ upgradeRequests: requests });
+      });
+    }).catch(e => console.error(e));
+
     const pressedKeys = new Set<string>();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,6 +138,8 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
+      unsubscribeUsers();
+      unsubscribeRequests();
     };
   }, []);
 

@@ -20,7 +20,7 @@
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
     "file-saver": "^2.0.5",
-    "firebase": "^12.16.0",
+    "firebase": "^12.17.0",
     "framer-motion": "^12.42.2",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.546.0",
