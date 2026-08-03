@@ -37,6 +37,7 @@ export default function App() {
     // Listen to Firebase and sync to useStore
     let unsubscribeUsers = () => {};
     let unsubscribeRequests = () => {};
+    let lastWarningTime = 0;
 
     import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
@@ -93,10 +94,17 @@ export default function App() {
         
         const currentState = useStore.getState();
         if (currentState.currentUser && currentState.currentUserSessionId) {
-           const currentDbSession = updatedUsersData[currentState.currentUser]?.activeSessionId;
+           const currentUserData = updatedUsersData[currentState.currentUser];
+           const currentDbSession = currentUserData?.activeSessionId;
            if (currentDbSession !== currentState.currentUserSessionId) {
              alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
              currentState.logout();
+           } else if (currentUserData?.loginAttemptWarning && currentUserData.loginAttemptWarning > lastWarningTime) {
+             lastWarningTime = currentUserData.loginAttemptWarning;
+             // Ensure we only warn if the warning was triggered recently (e.g. last 10 seconds)
+             if (Date.now() - currentUserData.loginAttemptWarning < 10000) {
+               alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
+             }
            }
         }
       });

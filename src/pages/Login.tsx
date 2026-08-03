@@ -54,6 +54,8 @@ export default function Login() {
       alert("Akun tidak ditemukan. Silakan Daftar Akun baru.");
     } else if (result === 'invalid_password') {
       alert("Kata sandi salah. Silakan coba lagi atau hubungi Admin.");
+    } else if (result === 'already_active') {
+      alert("Tidak Bisa login Karena Akun ini aktif dan sedang berjalan di perangkat lain");
     }
   };
 

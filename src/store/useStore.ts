@@ -146,6 +146,7 @@ export interface UserData {
   label?: 'Full Time' | 'Demo';
   signupTime?: number;
   activeSessionId?: string;
+  loginAttemptWarning?: number;
 }
 
 interface AppState {
@@ -173,7 +174,7 @@ interface AppState {
   login: (username: string) => void;
   logout: () => void;
   registerUser: (username: string, password: string) => boolean;
-  verifyAndLogin: (username: string, password: string) => 'success' | 'invalid_password' | 'not_found';
+  verifyAndLogin: (username: string, password: string) => 'success' | 'invalid_password' | 'not_found' | 'already_active';
   adminResetPassword: (username: string, newPassword: string) => void;
   adminSetLabel: (username: string, label: 'Full Time' | 'Demo') => void;
   adminDeleteUser: (username: string) => void;
@@ -297,6 +298,16 @@ export const useStore = create<AppState>()(
         // If password exists, check it
         if (userData.password && userData.password !== password) {
           return 'invalid_password';
+        }
+        
+        // If there's an active session, reject and notify the other device
+        if (userData.activeSessionId) {
+          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+            updateDoc(doc(db, 'global_users', normalized), {
+              loginAttemptWarning: Date.now()
+            }).catch(e => console.error(e));
+          });
+          return 'already_active';
         }
 
         // Otherwise success, login
@@ -506,6 +517,14 @@ export const useStore = create<AppState>()(
       },
 
       logout: () => {
+        const state = get();
+        if (state.currentUser) {
+          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
+            updateDoc(doc(db, 'global_users', state.currentUser!), {
+              activeSessionId: null
+            }).catch(e => console.error(e));
+          });
+        }
         set({
           currentUser: null,
           currentUserSessionId: null,
