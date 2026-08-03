@@ -8,6 +8,7 @@ import { saveAs } from 'file-saver';
 import { eachDayOfInterval, format, getDay } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
+import { generateModulAjarClient } from '../lib/geminiClient';
 
 export default function ModulAjar() {
     const { 
@@ -148,25 +149,15 @@ export default function ModulAjar() {
     setIsGeneratingModul(true);
     
     try {
-      const response = await fetch('/api/generate-modul-ajar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          selectedAtp: selectedAtpStrings, 
-          selectedGrade, 
-          totalJp, 
-          pertemuan, 
-          profile,
-          karakteristik: selectedKarakteristik
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal menghasilkan Modul Ajar');
-      }
-
-      const data = await response.json();
+      const data = await generateModulAjarClient(
+        selectedAtpStrings,
+        selectedGrade,
+        totalJp,
+        pertemuan,
+        profile,
+        selectedKarakteristik,
+        geminiApiKey
+      );
       
       const createHeading = (text: string, level: number = 1) => {
         return new Paragraph({

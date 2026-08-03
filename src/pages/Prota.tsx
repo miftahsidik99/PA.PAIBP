@@ -8,6 +8,7 @@ import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, Width
 import { saveAs } from 'file-saver';
 import { eachDayOfInterval, format, getDay, isSameMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { generateAtpBatchClient } from '../lib/geminiClient';
 
 export default function Prota() {
   const { user, profile, calendarData, geminiApiKey, schedules: storeSchedules, savedProtas: storeProtas, setSavedProtas: setStoreProtas } = useStore();
@@ -58,25 +59,13 @@ export default function Prota() {
       const jpPerWeek = schedules[selectedGrade]?.jp || 4;
       const totalMeetings = getEffectiveDates().length;
       
-      const response = await fetch('/api/generate-atp-batch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          gradeCp,
-          jpPerWeek,
-          totalMeetings,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Gagal menghasilkan Prota');
-      }
-
-      const data = await response.json();
-      setProtaData(data.prota);
+      const data = await generateAtpBatchClient(
+        gradeCp,
+        jpPerWeek,
+        totalMeetings,
+        geminiApiKey
+      );
+      setProtaData(data);
       return; // Stop here and skip the old logic
     } catch (error: any) {
       console.error(error);
