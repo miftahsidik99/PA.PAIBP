@@ -15,7 +15,8 @@ import {
   RefreshCw,
   Search,
   Check,
-  Phone
+  Phone,
+  Trash2
 } from 'lucide-react';
 
 export default function Admin() {
@@ -25,12 +26,16 @@ export default function Admin() {
     upgradeRequests, 
     adminResetPassword, 
     adminSetLabel, 
-    adminApproveUpgrade 
+    adminApproveUpgrade,
+    adminDeleteUser,
+    adminUpdateUsername
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [resettingUser, setResettingUser] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [editingUsernameUser, setEditingUsernameUser] = useState<string | null>(null);
+  const [newUsername, setNewUsername] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -58,6 +63,29 @@ export default function Admin() {
   const handleApprove = (req: UpgradeRequest) => {
     adminApproveUpgrade(req.id);
     showToast(`Permintaan ${req.namaLengkap} disetujui. Akses diubah ke Full Time!`);
+  };
+
+  const handleDeleteUser = (username: string) => {
+    if (confirm(`Apakah Anda yakin ingin menghapus pengguna '${username}' secara permanen? Data tidak dapat dikembalikan.`)) {
+      adminDeleteUser(username);
+      showToast(`Pengguna ${username} berhasil dihapus.`);
+    }
+  };
+
+  const handleUpdateUsername = (oldUsername: string) => {
+    const trimmed = newUsername.trim().toLowerCase();
+    if (!trimmed) {
+      alert("Username baru tidak boleh kosong!");
+      return;
+    }
+    if (usersData[trimmed]) {
+      alert("Username tersebut sudah digunakan oleh pengguna lain.");
+      return;
+    }
+    adminUpdateUsername(oldUsername, trimmed);
+    setEditingUsernameUser(null);
+    setNewUsername('');
+    showToast(`Username ${oldUsername} berhasil diubah menjadi ${trimmed}.`);
   };
 
   // Convert usersData object to array
@@ -273,7 +301,48 @@ export default function Admin() {
                     return (
                       <tr key={u.username} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4 pl-6 font-mono font-bold text-indigo-700">
-                          {u.username}
+                          {editingUsernameUser === u.username ? (
+                            <div className="flex flex-col gap-2">
+                              <input
+                                type="text"
+                                placeholder="Username baru..."
+                                value={newUsername}
+                                onChange={(e) => setNewUsername(e.target.value)}
+                                className="px-2 py-1 border border-slate-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-mono"
+                              />
+                              <div className="flex gap-1">
+                                <button
+                                  onClick={() => handleUpdateUsername(u.username)}
+                                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[10px] font-bold transition-colors"
+                                >
+                                  Simpan
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingUsernameUser(null);
+                                    setNewUsername('');
+                                  }}
+                                  className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-md text-[10px] font-bold transition-colors"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {u.username}
+                              <button
+                                onClick={() => {
+                                  setEditingUsernameUser(u.username);
+                                  setNewUsername(u.username);
+                                }}
+                                className="p-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                                title="Edit Username"
+                              >
+                                <RotateCcw size={12} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                         <td className="p-4 font-semibold text-slate-700">
                           {u.profile?.namaGuru || <span className="text-slate-400 italic text-xs">Belum diisi</span>}
@@ -348,13 +417,20 @@ export default function Admin() {
                           </button>
                         </td>
                         <td className="p-4 pr-6 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex flex-col items-center justify-center gap-2">
                             <button
                               onClick={() => handleToggleLabel(u.username, u.label)}
-                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors flex items-center gap-1"
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1 w-full"
                             >
                               <RefreshCw size={12} />
                               Ubah Label ke {isFullTime ? "Demo" : "Full Time"}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.username)}
+                              className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1 w-full"
+                            >
+                              <Trash2 size={12} />
+                              Hapus Akun
                             </button>
                           </div>
                         </td>

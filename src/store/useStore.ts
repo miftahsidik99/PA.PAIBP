@@ -145,10 +145,12 @@ export interface UserData {
   password?: string;
   label?: 'Full Time' | 'Demo';
   signupTime?: number;
+  activeSessionId?: string;
 }
 
 interface AppState {
   currentUser: string | null;
+  currentUserSessionId: string | null;
   usersData: Record<string, UserData>;
   upgradeRequests?: UpgradeRequest[];
   
@@ -174,6 +176,8 @@ interface AppState {
   verifyAndLogin: (username: string, password: string) => 'success' | 'invalid_password' | 'not_found';
   adminResetPassword: (username: string, newPassword: string) => void;
   adminSetLabel: (username: string, label: 'Full Time' | 'Demo') => void;
+  adminDeleteUser: (username: string) => void;
+  adminUpdateUsername: (oldUsername: string, newUsername: string) => void;
   submitUpgradeRequest: (namaLengkap: string, noWhatsapp: string, username: string) => void;
   adminApproveUpgrade: (requestId: string) => void;
   
@@ -226,6 +230,7 @@ export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: null,
+      currentUserSessionId: null,
       usersData: {},
       upgradeRequests: [],
       user: null,
@@ -358,6 +363,47 @@ export const useStore = create<AppState>()(
         }
       },
 
+      adminDeleteUser: (username: string) => {
+        const state = get();
+        const normalized = username.trim().toLowerCase();
+        const newUsersData = { ...state.usersData };
+        delete newUsersData[normalized];
+        set({ usersData: newUsersData });
+        
+        import('../lib/firebase').then(({ db, doc, deleteDoc }) => {
+          deleteDoc(doc(db, 'global_users', normalized)).catch(e => console.error(e));
+        });
+      },
+
+      adminUpdateUsername: (oldUsername: string, newUsername: string) => {
+        const state = get();
+        const normalizedOld = oldUsername.trim().toLowerCase();
+        const normalizedNew = newUsername.trim().toLowerCase();
+        
+        const userData = state.usersData[normalizedOld];
+        if (userData && normalizedOld !== normalizedNew && !state.usersData[normalizedNew]) {
+          const newUsersData = { ...state.usersData };
+          newUsersData[normalizedNew] = { ...userData };
+          delete newUsersData[normalizedOld];
+          set({ usersData: newUsersData });
+          
+          import('../lib/firebase').then(({ db, doc, setDoc, deleteDoc }) => {
+            // copy to new
+            setDoc(doc(db, 'global_users', normalizedNew), {
+              username: normalizedNew,
+              password: userData.password || '',
+              label: userData.label || 'Demo',
+              signupTime: userData.signupTime || Date.now(),
+              profile: userData.profile || null,
+              activeSessionId: userData.activeSessionId || null
+            }).then(() => {
+              // delete old
+              deleteDoc(doc(db, 'global_users', normalizedOld)).catch(e => console.error(e));
+            }).catch(e => console.error(e));
+          });
+        }
+      },
+
       submitUpgradeRequest: (namaLengkap: string, noWhatsapp: string, username: string) => {
         const state = get();
         const requests = state.upgradeRequests || [];
@@ -425,8 +471,13 @@ export const useStore = create<AppState>()(
             userData = { ...userData, signupTime: Date.now() };
           }
         }
+        
+        const sessionId = Date.now().toString() + Math.random().toString(36).substring(7);
+        userData.activeSessionId = sessionId;
+        
         set({
           currentUser: normalized,
+          currentUserSessionId: sessionId,
           user: { uid: normalized, displayName: normalized },
           profile: userData.profile,
           calendarData: userData.calendarData,
@@ -446,11 +497,18 @@ export const useStore = create<AppState>()(
             [normalized]: userData
           }
         });
+        
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'global_users', normalized), {
+            activeSessionId: sessionId
+          }, { merge: true }).catch(e => console.error(e));
+        });
       },
 
       logout: () => {
         set({
           currentUser: null,
+          currentUserSessionId: null,
           user: null,
           profile: null,
           calendarData: null,

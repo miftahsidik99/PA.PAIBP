@@ -42,10 +42,12 @@ export default function App() {
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
         const usersData = useStore.getState().usersData;
         const updatedUsersData = { ...usersData };
+        const snapshotIds = new Set();
         
         snapshot.forEach((doc) => {
           const data = doc.data();
           const normalized = doc.id;
+          snapshotIds.add(normalized);
           if (updatedUsersData[normalized]) {
             updatedUsersData[normalized] = {
               ...updatedUsersData[normalized],
@@ -74,27 +76,29 @@ export default function App() {
               jurnalEntries: {},
               password: data.password,
               label: data.label || 'Demo',
-              signupTime: data.signupTime || Date.now()
+              signupTime: data.signupTime || Date.now(),
+              activeSessionId: data.activeSessionId || undefined
             };
           }
         });
         
-        // Push any purely local users to Firestore
-        import('./lib/firebase').then(({ setDoc, doc }) => {
-          Object.keys(usersData).forEach(localUser => {
-            if (!snapshot.docs.find(d => d.id === localUser)) {
-               setDoc(doc(db, 'global_users', localUser), {
-                 username: localUser,
-                 password: usersData[localUser].password || '',
-                 label: usersData[localUser].label || 'Demo',
-                 signupTime: usersData[localUser].signupTime || Date.now(),
-                 profile: usersData[localUser].profile || null
-               }).catch(e => console.error(e));
-            }
-          });
+        // Remove local users that were deleted from Firestore
+        Object.keys(updatedUsersData).forEach(localUser => {
+          if (!snapshotIds.has(localUser)) {
+             delete updatedUsersData[localUser];
+          }
         });
         
         useStore.setState({ usersData: updatedUsersData });
+        
+        const currentState = useStore.getState();
+        if (currentState.currentUser && currentState.currentUserSessionId) {
+           const currentDbSession = updatedUsersData[currentState.currentUser]?.activeSessionId;
+           if (currentDbSession !== currentState.currentUserSessionId) {
+             alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
+             currentState.logout();
+           }
+        }
       });
 
       unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
