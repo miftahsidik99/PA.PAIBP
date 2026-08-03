@@ -37,6 +37,7 @@ export default function Admin() {
   const [editingUsernameUser, setEditingUsernameUser] = useState<string | null>(null);
   const [newUsername, setNewUsername] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -66,9 +67,14 @@ export default function Admin() {
   };
 
   const handleDeleteUser = (username: string) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus pengguna '${username}' secara permanen? Data tidak dapat dikembalikan.`)) {
-      adminDeleteUser(username);
-      showToast(`Pengguna ${username} berhasil dihapus.`);
+    setUserToDelete(username);
+  };
+
+  const confirmDeleteUser = () => {
+    if (userToDelete) {
+      adminDeleteUser(userToDelete);
+      showToast(`Pengguna ${userToDelete} berhasil dihapus.`);
+      setUserToDelete(null);
     }
   };
 
@@ -443,6 +449,32 @@ export default function Admin() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-800 mb-2">Konfirmasi Hapus Akun</h3>
+            <p className="text-slate-600 mb-6 text-sm">
+              Apakah Anda yakin ingin menghapus pengguna <span className="font-bold text-slate-800">'{userToDelete}'</span> secara permanen? Data tidak dapat dikembalikan.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDeleteUser}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-sm transition-colors"
+              >
+                Hapus Akun
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
