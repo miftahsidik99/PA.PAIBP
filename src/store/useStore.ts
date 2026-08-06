@@ -351,16 +351,6 @@ export const useStore = create<AppState>()(
           return 'invalid_password';
         }
         
-        // If there's an active session, reject and notify the other device
-        if (userData.activeSessionId) {
-          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-            updateDoc(doc(db, 'global_users', normalized), {
-              loginAttemptWarning: Date.now()
-            }).catch(e => console.error(e));
-          });
-          return 'already_active';
-        }
-
         // Otherwise success, login
         state.login(normalized);
 

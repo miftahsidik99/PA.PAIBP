@@ -173,9 +173,19 @@ export default function ModulAjar() {
         });
       };
 
-      const createNormalParagraph = (text: string, forceJustify: boolean = true) => {
+      const createNormalParagraph = (text: any, forceJustify: boolean = true) => {
         if (!text) return [new Paragraph({ children: [] })];
-        return text.split('\n').filter(p => p.trim()).map(p => {
+        
+        let textStr = '';
+        if (typeof text === 'string') {
+          textStr = text;
+        } else if (Array.isArray(text)) {
+          textStr = text.map(t => typeof t === 'string' ? t : JSON.stringify(t)).join('\n');
+        } else {
+          textStr = JSON.stringify(text);
+        }
+
+        return textStr.split('\n').filter(p => p.trim()).map(p => {
           const trimmed = p.trim();
           // Check for numbered list (1., 2., etc) or lettered list (a., b., etc) or bullets
           const isList = /^[0-9]+[\.\)]\s+|^[a-z][\.\)]\s+|^[\-\•\-\*]\s+/i.test(trimmed);

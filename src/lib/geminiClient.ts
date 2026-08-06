@@ -201,6 +201,15 @@ PRINSIP INSERSI KBC DALAM MODUL:
 2. KBC tidak boleh hanya disebut di satu bagian, tetapi harus diinsersi ke SELURUH komponen modul (Tujuan, Kegiatan, Asesmen, Rubrik, Refleksi, LKPD, Lampiran).
 3. MODEL, PENDEKATAN, METODE, MEDIA: Tentukan HANYA 1 model utama (misal: PBL/PJBL/Discovery), HANYA 1 pendekatan utama (misal: TaRL/CRT/Saintifik), HANYA 1 metode dominan, HANYA 1 media utama.
 
+ATURAN MUTLAK AKOMODASI SELURUH ATP & JUMLAH PERTEMUAN:
+- PENGGUNA MEMILIH TEPAT ${selectedAtp.length} ATP DAN TOTAL ${pertemuan} PERTEMUAN.
+- SELURUH ${selectedAtp.length} ATP YANG DIPILIH HARUS DIBAHAS DAN DIAKOMODASI SECARA LENGKAP PADA SELURUH KOMPONEN MODUL AJAR (Identitas, TP, ATP, Langkah Pembelajaran, Asesmen, LKPD, dst.).
+- PADA SECTION identitas.materi: Wajib mencakup dan menyebutkan seluruh topik dari ${selectedAtp.length} ATP yang dipilih.
+- PADA SECTION komponenInti.tp DAN komponenInti.atp: Wajib membreakdown seluruh ${selectedAtp.length} ATP secara terstruktur.
+- PADA SECTION langkahPembelajaran: HARUS MEMILIKI TEPAT ${pertemuan} OBJEK PERTEMUAN (Pertemuan 1, Pertemuan 2, ... hingga Pertemuan ${pertemuan}).
+- DILARANG HANYA MENAMPILKAN 1 PERTEMUAN ATAU HANYA MEMBREAKDOWN 1 ATP JIKA PENGGUNA MEMILIH LEBIH DARI 1 ATP/PERTEMUAN!
+- Setiap pertemuan dalam langkahPembelajaran harus secara eksplisit menguraikan alur pendahuluan, kegiatan inti (sesuai ATP pada pertemuan tersebut), dan penutup.
+
 STRUKTUR MODUL AJAR YANG HARUS DIHASILKAN (23 KOMPONEN DALAM FORMAT JSON):
 
 Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, tanpa teks pengantar) dengan struktur berikut:
@@ -212,7 +221,7 @@ Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, 
   },
   "identitas": {
     "elemen": "...",
-    "materi": "...",
+    "materi": "Materi lengkap yang mencakup seluruh ${selectedAtp.length} ATP yang dipilih...",
     "model": "...",
     "pendekatan": "...",
     "metode": "...",
@@ -231,8 +240,8 @@ Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, 
   },
   "komponenInti": {
     "cp": "...",
-    "tp": "Tujuan Pembelajaran dengan KKO terukur yang memuat sikap, pengetahuan, keterampilan terikat KBC...",
-    "atp": "Alur Tujuan Pembelajaran bertahap yang menguatkan KBC...",
+    "tp": "Tujuan Pembelajaran rinci yang mencakup SELURUH ${selectedAtp.length} ATP yang dipilih dengan KKO terukur dan nilai KBC...",
+    "atp": "Alur Tujuan Pembelajaran bertahap dari ATP ke-1 hingga ATP ke-${selectedAtp.length} yang menguatkan KBC...",
     "pemahamanBermakna": "Manfaat nyata pembelajaran di rumah, sekolah, masyarakat, dan lingkungan...",
     "pertanyaanPemantik": [
       "Pertanyaan 1 (berpikir kritis & rasa syukur)",
@@ -245,7 +254,7 @@ Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, 
   "pemetaanKbc": [
     {
       "tema": "Tema KBC",
-      "materiKegiatan": "Integrasi pada materi & kegiatan pembelajaran",
+      "materiKegiatan": "Integrasi pada materi & kegiatan pembelajaran seluruh ATP",
       "pembiasaanKarakter": "Bentuk pembiasaan adab & karakter peserta didik"
     }
   ],
@@ -256,13 +265,15 @@ Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, 
   },
   "pembelajaranMendalam": "Penjelasan rinci implementasi 8 Dimensi Profil Lulusan, 3 Prinsip (Mindful, Meaningful, Joyful Learning), 3 Pengalaman (Memahami, Mengaplikasi, Merefleksi), dan 4 Kerangka Pembelajaran (Praktik Pedagogis, Kemitraan, Lingkungan, Teknologi Digital) yang terintegrasi KBC...",
   "langkahPembelajaran": [
-    {
-      "pertemuan": 1,
-      "waktu": "2 JP x 35 Menit",
-      "pendahuluan": "Rinci aktivitas pembukaan, doa bersama dengan adab rasa cinta Allah, apersepsi, penyampaian tujuan dan nilai KBC...",
-      "inti": "Aktivitas guru dan peserta didik secara rinci. Menampilkan diskusi kelompok, empati, kepedulian sesama, aplikasi nilai KBC...",
-      "penutup": "Rinci kegiatan penutup, refleksi singkat nilai cinta, konfirmasi pembiasaan baik, doa dan salam..."
-    }
+    // PENTING: Array ini HARUS berisi TEPAT ${pertemuan} objek (Pertemuan 1 sampai Pertemuan ${pertemuan}).
+    // PASTIKAN Anda membuat objek untuk SETIAP PERTEMUAN. JANGAN HANYA MEMBUAT 1 JIKA PERTEMUAN > 1!
+    ${Array.from({ length: pertemuan }).map((_, i) => `{
+      "pertemuan": ${i + 1},
+      "waktu": "${totalJp / pertemuan} JP x 35 Menit",
+      "pendahuluan": "Rinci aktivitas pembukaan Pertemuan ${i + 1}, doa bersama dengan adab rasa cinta Allah, apersepsi, penyampaian tujuan (ATP ke-${i + 1})...",
+      "inti": "Aktivitas guru dan peserta didik rinci untuk ATP ke-${i + 1}...",
+      "penutup": "Rinci kegiatan penutup Pertemuan ${i + 1}..."
+    }`).join(',\n    ')}
   ],
   "asesmen": {
     "jenis": "Diagnostik, Formatif, dan Sumatif",
