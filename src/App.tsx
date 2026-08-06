@@ -107,6 +107,8 @@ export default function App() {
              }
            }
         }
+      }, (error) => {
+        console.warn("Firestore global_users listener warning:", error);
       });
 
       unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
@@ -115,6 +117,8 @@ export default function App() {
           requests.push(doc.data());
         });
         useStore.setState({ upgradeRequests: requests });
+      }, (error) => {
+        console.warn("Firestore upgrade_requests listener warning:", error);
       });
     }).catch(e => console.error(e));
 

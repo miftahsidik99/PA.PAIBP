@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore, UserData, UpgradeRequest } from '../store/useStore';
 import { motion } from 'motion/react';
@@ -16,8 +16,16 @@ import {
   Search,
   Check,
   Phone,
-  Trash2
+  Trash2,
+  Youtube,
+  Plus,
+  Edit3,
+  Save,
+  X,
+  ExternalLink,
+  Play
 } from 'lucide-react';
+import { getYouTubeThumbnailUrl } from '../lib/youtube';
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -28,7 +36,12 @@ export default function Admin() {
     adminSetLabel, 
     adminApproveUpgrade,
     adminDeleteUser,
-    adminUpdateUsername
+    adminUpdateUsername,
+    flashcards,
+    addFlashcard,
+    updateFlashcard,
+    deleteFlashcard,
+    setFlashcards
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,6 +51,79 @@ export default function Admin() {
   const [newUsername, setNewUsername] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
+  // Flashcards state
+  const [inputTitle, setInputTitle] = useState('');
+  const [inputUrl, setInputUrl] = useState('');
+  const [editingFlashcardId, setEditingFlashcardId] = useState<string | null>(null);
+  const [editFlashcardTitle, setEditFlashcardTitle] = useState('');
+  const [editFlashcardUrl, setEditFlashcardUrl] = useState('');
+  const [flashcardToDelete, setFlashcardToDelete] = useState<{ id: string; title: string } | null>(null);
+
+  // Sync flashcards real-time from Firestore
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    import('../lib/firebase').then(({ db, doc, onSnapshot }) => {
+      unsubscribe = onSnapshot(doc(db, 'app_config', 'flashcards'), (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          if (data && Array.isArray(data.items)) {
+            setFlashcards(data.items);
+          }
+        }
+      }, (error) => {
+        console.warn("Firestore flashcards listener warning:", error);
+      });
+    }).catch(err => console.error(err));
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [setFlashcards]);
+
+  const handleAddFlashcardSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputTitle.trim()) {
+      alert("Judul flashcard/video tidak boleh kosong!");
+      return;
+    }
+    if (!inputUrl.trim()) {
+      alert("Link URL tidak boleh kosong!");
+      return;
+    }
+    addFlashcard(inputTitle, inputUrl);
+    setInputTitle('');
+    setInputUrl('');
+    showToast("Berhasil menambahkan link flashcard video baru!");
+  };
+
+  const handleStartEditFlashcard = (f: { id: string; title: string; url: string }) => {
+    setEditingFlashcardId(f.id);
+    setEditFlashcardTitle(f.title);
+    setEditFlashcardUrl(f.url);
+  };
+
+  const handleSaveEditFlashcard = (id: string) => {
+    if (!editFlashcardTitle.trim() || !editFlashcardUrl.trim()) {
+      alert("Judul dan link tidak boleh kosong!");
+      return;
+    }
+    updateFlashcard(id, editFlashcardTitle, editFlashcardUrl);
+    setEditingFlashcardId(null);
+    showToast("Flashcard berhasil diperbarui!");
+  };
+
+  const handleDeleteFlashcardItem = (id: string, title: string) => {
+    setFlashcardToDelete({ id, title });
+  };
+
+  const confirmDeleteFlashcard = () => {
+    if (flashcardToDelete) {
+      deleteFlashcard(flashcardToDelete.id);
+      showToast(`Flashcard "${flashcardToDelete.title}" berhasil dihapus.`);
+      setFlashcardToDelete(null);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -170,6 +256,198 @@ export default function Admin() {
               {(upgradeRequests || []).filter(r => r.status === 'pending').length}
             </h2>
             <p className="text-xs text-slate-500 mt-2">Menunggu persetujuan upgrade ke Full Time.</p>
+          </div>
+        </div>
+
+        {/* Flashcard & Video Link Management Section */}
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-10">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-rose-100 text-rose-600 rounded-xl">
+                  <Youtube size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900">Kelola Flashcard Media & Video YouTube (Tampil di Login)</h2>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Input judul dan link video (YouTube) yang akan tampil secara otomatis sebagai thumbnail flashcard di halaman login aplikasi.
+              </p>
+            </div>
+            <span className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-100 rounded-full text-xs font-bold flex items-center gap-1.5">
+              <Play size={12} fill="currentColor" />
+              {(flashcards || []).length} Flashcard Aktif
+            </span>
+          </div>
+
+          {/* Form Input Flashcard Baru */}
+          <div className="p-6 bg-slate-50/40 border-b border-slate-100">
+            <form onSubmit={handleAddFlashcardSubmit} className="space-y-4">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Form Input Flashcard / Video Baru</h3>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">1. Input Judul</label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: Panduan Modul Ajar PAIBP SD"
+                    value={inputTitle}
+                    onChange={(e) => setInputTitle(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                    required
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">2. Input Link (URL YouTube)</label>
+                  <input
+                    type="url"
+                    placeholder="Contoh: https://www.youtube.com/watch?v=..."
+                    value={inputUrl}
+                    onChange={(e) => setInputUrl(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 font-mono"
+                    required
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-rose-600/10 flex items-center justify-center gap-1.5"
+                  >
+                    <Plus size={16} />
+                    Tambah Flashcard
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Tabel Daftar Flashcard */}
+          <div className="overflow-x-auto">
+            {(!flashcards || flashcards.length === 0) ? (
+              <div className="p-12 text-center text-slate-400">
+                <Youtube size={48} className="mx-auto text-slate-300 mb-3" />
+                <p className="font-medium text-sm">Belum ada flashcard video yang ditambahkan.</p>
+                <p className="text-xs text-slate-400 mt-1">Gunakan form di atas untuk memasukkan judul dan link video YouTube.</p>
+              </div>
+            ) : (
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-slate-100 bg-slate-50 text-[10px] uppercase tracking-widest font-bold text-slate-400">
+                    <th className="p-4 pl-6 text-center w-12">No</th>
+                    <th className="p-4 w-36">Thumbnail</th>
+                    <th className="p-4">Judul & Link URL Video</th>
+                    <th className="p-4 text-center w-48">Aksi Manajemen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {flashcards.map((item, idx) => {
+                    const isEditing = editingFlashcardId === item.id;
+                    const thumbUrl = getYouTubeThumbnailUrl(item.url);
+
+                    return (
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 pl-6 text-center font-bold text-slate-400 text-xs">
+                          {idx + 1}
+                        </td>
+                        <td className="p-4">
+                          <div className="relative w-28 h-16 bg-slate-900 rounded-xl overflow-hidden border border-slate-200 group flex items-center justify-center shadow-sm">
+                            {thumbUrl ? (
+                              <img 
+                                src={thumbUrl} 
+                                alt={item.title} 
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform" 
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                                <Play size={20} className="text-rose-500 mb-1" />
+                                <span className="text-[9px]">Web Link</span>
+                              </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                              <div className="w-7 h-7 bg-rose-600/90 text-white rounded-full flex items-center justify-center shadow">
+                                <Play size={12} className="ml-0.5 fill-white" />
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          {isEditing ? (
+                            <div className="space-y-2">
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase">Input Judul</label>
+                                <input
+                                  type="text"
+                                  value={editFlashcardTitle}
+                                  onChange={(e) => setEditFlashcardTitle(e.target.value)}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-400 uppercase">Input Link</label>
+                                <input
+                                  type="url"
+                                  value={editFlashcardUrl}
+                                  onChange={(e) => setEditFlashcardUrl(e.target.value)}
+                                  className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-indigo-600 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-slate-800 text-sm">{item.title}</h4>
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-rose-600 hover:underline font-mono truncate max-w-md"
+                              >
+                                <ExternalLink size={12} />
+                                {item.url}
+                              </a>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4 pr-6 text-center">
+                          {isEditing ? (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleSaveEditFlashcard(item.id)}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1 shadow-sm"
+                                title="Simpan Perubahan"
+                              >
+                                <Save size={14} /> Simpan
+                              </button>
+                              <button
+                                onClick={() => setEditingFlashcardId(null)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-colors flex items-center gap-1"
+                                title="Batal"
+                              >
+                                <X size={14} /> Batal
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                onClick={() => handleStartEditFlashcard(item)}
+                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition-colors flex items-center gap-1"
+                                title="Edit Flashcard"
+                              >
+                                <Edit3 size={13} /> Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteFlashcardItem(item.id, item.title)}
+                                className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs transition-colors flex items-center gap-1"
+                                title="Hapus Flashcard"
+                              >
+                                <Trash2 size={13} /> Hapus
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
@@ -449,6 +727,41 @@ export default function Admin() {
           </div>
         </div>
       </div>
+
+      {/* Flashcard Delete Confirmation Modal */}
+      {flashcardToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-200 animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="p-3 bg-rose-100 rounded-2xl">
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Hapus Flashcard / Video</h3>
+                <p className="text-xs text-slate-500">Konfirmasi tindakan penghapusan media</p>
+              </div>
+            </div>
+            <p className="text-slate-600 mb-6 text-sm leading-relaxed">
+              Apakah Anda yakin ingin menghapus flashcard <span className="font-bold text-slate-900">"{flashcardToDelete.title}"</span>? Video ini tidak akan lagi tampil pada halaman login.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setFlashcardToDelete(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmDeleteFlashcard}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-md shadow-rose-600/20"
+              >
+                <Trash2 size={15} />
+                Ya, Hapus Flashcard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {userToDelete && (

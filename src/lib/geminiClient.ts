@@ -1,7 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 function getAI(apiKey?: string | null) {
-  const key = apiKey || (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY : '');
+  const key = apiKey || (typeof import.meta !== 'undefined' && (import.meta as any).env ? (import.meta as any).env.VITE_GEMINI_API_KEY : '');
   if (!key) {
     throw new Error("API Key Gemini belum diatur. Silakan atur API Key Gemini Anda melalui menu 'Pengaturan API' di sidebar kiri.");
   }

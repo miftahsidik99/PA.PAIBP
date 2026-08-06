@@ -10,6 +10,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == uid;
     }
 
+    match /app_config/{documentId} {
+      allow read, write: if true;
+    }
+
     match /global_users/{documentId} {
       allow read, write: if true;
     }
@@ -19,20 +23,16 @@ service cloud.firestore {
     }
     
     match /teaching_schedules/{documentId} {
-      allow read: if isOwner(documentId) || isOwner(resource.data.uid);
-      allow create: if isOwner(request.resource.data.uid);
-      allow update: if isOwner(documentId) || (isOwner(resource.data.uid) && isOwner(request.resource.data.uid));
-      allow delete: if isOwner(documentId) || isOwner(resource.data.uid);
+      allow read, write: if true;
     }
     
     match /protas/{documentId} {
-      allow read: if isOwner(documentId) || isOwner(resource.data.uid);
-      allow create: if isOwner(request.resource.data.uid);
-      allow update: if isOwner(documentId) || (isOwner(resource.data.uid) && isOwner(request.resource.data.uid));
-      allow delete: if isOwner(documentId) || isOwner(resource.data.uid);
+      allow read, write: if true;
     }
+
     match /academic_calendar/{documentId} {
-      allow read, write: if isOwner(documentId);
+      allow read, write: if true;
     }
   }
 }
+

@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { FlashcardLink } from '../lib/youtube';
+
 export interface UserProfile {
   namaGuru: string;
   namaSekolah: string;
@@ -204,6 +206,13 @@ interface AppState {
   importData: (jsonData: string) => void;
   geminiApiKey: string | null;
   setGeminiApiKey: (key: string) => void;
+
+  // Flashcards state and actions
+  flashcards: FlashcardLink[];
+  addFlashcard: (title: string, url: string) => void;
+  updateFlashcard: (id: string, title: string, url: string) => void;
+  deleteFlashcard: (id: string) => void;
+  setFlashcards: (flashcards: FlashcardLink[]) => void;
 }
 
 const initialUserData: UserData = {
@@ -255,6 +264,48 @@ export const useStore = create<AppState>()(
       jurnalEntries: {},
       geminiApiKey: null,
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
+
+      flashcards: [],
+
+      addFlashcard: (title: string, url: string) => {
+        const state = get();
+        const newCard: FlashcardLink = {
+          id: 'flash-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+          title: title.trim(),
+          url: url.trim(),
+          createdAt: Date.now()
+        };
+        const updated = [newCard, ...(state.flashcards || [])];
+        set({ flashcards: updated });
+
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        }).catch(err => console.error(err));
+      },
+
+      updateFlashcard: (id: string, title: string, url: string) => {
+        const state = get();
+        const updated = (state.flashcards || []).map(f => f.id === id ? { ...f, title: title.trim(), url: url.trim() } : f);
+        set({ flashcards: updated });
+
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        }).catch(err => console.error(err));
+      },
+
+      deleteFlashcard: (id: string) => {
+        const state = get();
+        const updated = (state.flashcards || []).filter(f => f.id !== id);
+        set({ flashcards: updated });
+
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        }).catch(err => console.error(err));
+      },
+
+      setFlashcards: (flashcards: FlashcardLink[]) => {
+        set({ flashcards });
+      },
 
       registerUser: (username: string, password: string) => {
         const state = get();
