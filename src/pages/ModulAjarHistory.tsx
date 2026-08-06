@@ -111,15 +111,17 @@ export default function ModulAjarHistory() {
         sections: [{
           properties: {},
           children: [
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "MODUL AJAR PAI DAN BUDI PEKERTI", bold: true, size: 48 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200, after: 400 }, children: [new TextRun({ text: "BERBASIS PERMENDIKDASMEN NOMOR 13 TAHUN 2025", size: 24, italics: true })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 800, after: 800 }, children: [new TextRun({ text: "[ LOGO SEKOLAH ]", size: 20 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Nama Guru: ${profile?.namaGuru || '-'}`, size: 24 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Sekolah: ${profile?.namaSekolah || '-'}`, size: 24 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2026/2027'}`, size: 24 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Fase: ${grade <= 2 ? 'A' : (grade <= 4 ? 'B' : 'C')}`, size: 24 })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Kelas: ${grade}`, size: 24 })] }),
+            // COVER
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: data.cover?.judul || "MODUL AJAR PAI DAN BUDI PEKERTI SD BERBASIS PERMENDIKDASMEN 13 TAHUN 2025 DAN KURIKULUM BERBASIS CINTA (KBC)", bold: true, size: 36 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 150, after: 300 }, children: [new TextRun({ text: data.cover?.penegasan || "Disusun dengan Semangat Kurikulum Berbasis Cinta (KBC)", size: 22, italics: true, color: "059669" })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 600, after: 600 }, children: [new TextRun({ text: "[ LOGO SEKOLAH ]", size: 20 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Nama Guru: ${profile?.namaGuru || '[DIISI OLEH GURU]'}`, size: 22 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Sekolah: ${profile?.namaSekolah || '[DIISI OLEH GURU]'}`, size: 22 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2024/2025'}`, size: 22 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Fase: ${grade <= 2 ? 'A' : (grade <= 4 ? 'B' : 'C')}`, size: 22 })] }),
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: `Kelas: ${grade}`, size: 22 })] }),
 
+            // IDENTITAS MODUL
             createHeading("I. IDENTITAS MODUL"),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
@@ -135,12 +137,21 @@ export default function ModulAjarHistory() {
                 createTableRow("Karakteristik Siswa", item.karakteristik || '-'),
                 createTableRow("Target Peserta Didik", data.identitas?.target || '-'),
                 createTableRow("Sarana Prasarana", data.identitas?.sarana || '-'),
+                createTableRow("Integrasi KBC", data.identitas?.integrasiKbc || 'Terintegrasi Kurikulum Berbasis Cinta'),
+                createTableRow("Tema KBC Utama", data.identitas?.temaKbcUtama || 'Cinta Allah & Rasul, Cinta Diri & Sesama'),
+                createTableRow("Nilai Karakter KBC", data.identitas?.nilaiKarakter || 'Kasih Sayang, Tanggung Jawab, Adab, Empati'),
               ]
             }),
 
-            createHeading("II. KOMPONEN INTI"),
-            createSubHeading("Capaian Pembelajaran"),
-            ...createNormalParagraph(data.komponenInti?.cp || ''),
+            // CAPAIAN PEMBELAJARAN
+            createHeading("II. CAPAIAN PEMBELAJARAN & KETERKAITAN KBC"),
+            createSubHeading("Capaian Pembelajaran (CP)"),
+            ...createNormalParagraph(typeof data.cp === 'object' ? data.cp?.deskripsi : (data.cp || data.komponenInti?.cp || '')),
+            createSubHeading("Keterkaitan CP dengan Tema Kurikulum Berbasis Cinta (KBC)"),
+            ...createNormalParagraph(typeof data.cp === 'object' ? data.cp?.keterkaitanKbc : (data.komponenInti?.cpKbc || 'CP ini dikembangkan untuk menumbuhkan rasa cinta Allah, Rasul, ilmu, lingkungan, sesama, dan tanah air.')),
+
+            // KOMPONEN INTI
+            createHeading("III. KOMPONEN INTI"),
             createSubHeading("Tujuan Pembelajaran"),
             ...createNormalParagraph(data.komponenInti?.tp || ''),
             createSubHeading("Alur Tujuan Pembelajaran"),
@@ -150,42 +161,81 @@ export default function ModulAjarHistory() {
             createSubHeading("Pertanyaan Pemantik"),
             ...(data.komponenInti?.pertanyaanPemantik || []).map((p: string, i: number) => createListParagraph(p, i + 1)),
 
-            createHeading("III. ASESMEN DIAGNOSTIK"),
-            ...createNormalParagraph(data.diagnostik?.deskripsi || ''),
-
-            createHeading("IV. PEMBELAJARAN MENDALAM (DEEP LEARNING)"),
-            ...createNormalParagraph(data.pembelajaranMendalam || ''),
-
-            createHeading("V. LANGKAH PEMBELAJARAN"),
-            ...(data.langkahPembelajaran || []).map((p: any) => ([
-              createSubHeading(`Pertemuan Ke-${p.pertemuan} (${p.waktu})`),
+            // PEMETAAN INTEGRASI KBC
+            createHeading("IV. PEMETAAN INTEGRASI KURIKULUM BERBASIS CINTA (KBC)"),
+            ...(Array.isArray(data.pemetaanKbc) && data.pemetaanKbc.length > 0 ? [
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
                 rows: [
-                  createTableRow("Pendahuluan", p.pendahuluan, true),
-                  createTableRow("Kegiatan Inti", p.inti, true),
-                  createTableRow("Penutup", p.penutup, true),
+                  new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "TEMA KBC", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "INTEGRASI MATERI / KEGIATAN", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                      new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "PEMBIASAAN KARAKTER", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                    ]
+                  }),
+                  ...data.pemetaanKbc.map((kbcItem: any) => new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ text: kbcItem.tema || '-' })], borders: cellBorders }),
+                      new TableCell({ children: [new Paragraph({ text: kbcItem.materiKegiatan || '-' })], borders: cellBorders }),
+                      new TableCell({ children: [new Paragraph({ text: kbcItem.pembiasaanKarakter || '-' })], borders: cellBorders }),
+                    ]
+                  }))
+                ]
+              })
+            ] : createNormalParagraph("Terintegrasi secara konsisten pada seluruh aktivitas pembelajaran dan pembiasaan adab siswa.")),
+
+            // DIAGNOSTIK
+            createHeading("V. ASESMEN DIAGNOSTIK"),
+            ...createNormalParagraph(data.diagnostik?.deskripsi || ''),
+            createSubHeading("Instrumen Kognitif"),
+            ...createNormalParagraph(data.diagnostik?.instrumenKognitif || ''),
+            createSubHeading("Instrumen Non-Kognitif (Adab & Kesiapan Sikap)"),
+            ...createNormalParagraph(data.diagnostik?.instrumenNonKognitif || ''),
+
+            // PEMBELAJARAN MENDALAM
+            createHeading("VI. PEMBELAJARAN MENDALAM (DEEP LEARNING 8,3,3,4)"),
+            ...createNormalParagraph(data.pembelajaranMendalam || ''),
+
+            // LANGKAH PEMBELAJARAN
+            createHeading("VII. LANGKAH-LANGKAH PEMBELAJARAN"),
+            ...(data.langkahPembelajaran || []).map((p: any) => ([
+              createSubHeading(`Pertemuan Ke-${p.pertemuan} (${p.waktu || '2 JP x 35 Menit'})`),
+              new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                  createTableRow("Pendahuluan (Doa, Adab, Apersepsi, KBC)", p.pendahuluan, true),
+                  createTableRow("Kegiatan Inti (Aktivitas Guru & Siswa + KBC)", p.inti, true),
+                  createTableRow("Penutup (Refleksi, Pembiasaan, Salam)", p.penutup, true),
                 ]
               })
             ])).flat(),
 
-            createHeading("VI. ASESMEN & INSTRUMEN"),
+            // ASESMEN
+            createHeading("VIII. ASESMEN & INSTRUMEN PENILAIAN"),
             ...createNormalParagraph(`Jenis Asesmen: ${data.asesmen?.jenis || '-'}`),
             ...createNormalParagraph(data.asesmen?.deskripsi || ''),
+            createSubHeading("Instrumen Penilaian"),
+            ...createNormalParagraph(data.asesmen?.instrumen || ''),
+            createSubHeading("Rubrik Penilaian Sikap KBC"),
+            ...createNormalParagraph(data.asesmen?.rubrik || ''),
 
-            createHeading("VII. PENGAYAAN & REMEDIAL"),
-            createSubHeading("Pengayaan"),
+            // PENGAYAAN & REMEDIAL
+            createHeading("IX. PENGAYAAN & REMEDIAL"),
+            createSubHeading("Pengayaan (Praktik Cinta Nyata)"),
             ...createNormalParagraph(data.pengayaanRemedial?.pengayaan || ''),
-            createSubHeading("Remedial"),
+            createSubHeading("Remedial (Pembiasaan Sikap Baik)"),
             ...createNormalParagraph(data.pengayaanRemedial?.remedial || ''),
 
-            createHeading("VIII. REFLEKSI"),
+            // REFLEKSI
+            createHeading("X. REFLEKSI GURU DAN PESERTA DIDIK"),
             createSubHeading("Refleksi Guru"),
             ...(data.refleksi?.guru || []).map((p: string, i: number) => createListParagraph(p, i + 1)),
             createSubHeading("Refleksi Peserta Didik"),
             ...(data.refleksi?.siswa || []).map((p: string, i: number) => createListParagraph(p, i + 1)),
 
-            createHeading("IX. LEMBAR KERJA PESERTA DIDIK (LKPD)"),
+            // LKPD
+            createHeading("XI. LEMBAR KERJA PESERTA DIDIK (LKPD) BERBASIS CINTA"),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
               rows: [
@@ -194,19 +244,53 @@ export default function ModulAjarHistory() {
                 createTableRow("Petunjuk", data.lkpd?.petunjuk || '', true),
                 createTableRow("Alat & Bahan", data.lkpd?.alat || '', true),
                 createTableRow("Langkah Kerja", data.lkpd?.langkah || '', true),
-                createTableRow("Tugas", data.lkpd?.tugas || '', true),
-                createTableRow("Soal", data.lkpd?.soal || '', true),
+                createTableRow("Tugas Praktik", data.lkpd?.tugas || '', true),
+                createTableRow("Soal-soal", data.lkpd?.soal || '', true),
+                createTableRow("Ruang Jawaban & Komitmen Perilaku Cinta", data.lkpd?.ruangJawaban || 'Tersedia ruang refleksi & komitmen perilaku cinta siswa.', true),
               ]
             }),
 
-            createHeading("X. BAHAN BACAAN, GLOSARIUM & PUSTAKA"),
+            // BACAAN DLL
+            createHeading("XII. BAHAN BACAAN, GLOSARIUM & DAFTAR PUSTAKA"),
             createSubHeading("Bahan Bacaan Guru"),
             ...createNormalParagraph(data.bacaanGlosariumPustaka?.bacaanGuru || ''),
             createSubHeading("Bahan Bacaan Siswa"),
             ...createNormalParagraph(data.bacaanGlosariumPustaka?.bacaanSiswa || ''),
+            createSubHeading("Glosarium KBC"),
+            ...createNormalParagraph(data.bacaanGlosariumPustaka?.glosarium || ''),
+            createSubHeading("Daftar Pustaka"),
+            ...createNormalParagraph(data.bacaanGlosariumPustaka?.pustaka || ''),
 
-            createHeading("XI. LAMPIRAN"),
+            // LAMPIRAN
+            createHeading("XIII. LAMPIRAN MODUL"),
             ...createNormalParagraph(data.lampiran || ''),
+
+            // TABEL VALIDASI
+            createHeading("XIV. TABEL VALIDASI OTOMATIS MODUL"),
+            new Table({
+              width: { size: 100, type: WidthType.PERCENTAGE },
+              rows: [
+                new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "ASPEK VALIDASI", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "STATUS", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "CATATAN / PENGUATAN KBC", bold: true })] })], shading: headerShading, borders: cellBorders }),
+                  ]
+                }),
+                ...(data.validasi || []).map((v: any) => new TableRow({
+                  children: [
+                    new TableCell({ children: [new Paragraph({ text: v.aspek || '-' })], borders: cellBorders }),
+                    new TableCell({ children: [new Paragraph({ text: v.status || '-' })], borders: cellBorders }),
+                    new TableCell({ children: [new Paragraph({ text: v.catatan || '-' })], borders: cellBorders }),
+                  ]
+                }))
+              ]
+            }),
+
+            // RINGKASAN OUTPUT KBC
+            createHeading("XV. RINGKASAN OUTPUT & PENEGASAN KBC"),
+            createSubHeading("Penegasan Integrasi Kurikulum Berbasis Cinta:"),
+            ...createNormalParagraph(data.outputSummary?.penegasanKbc || "Modul Ajar ini telah mengintegrasikan Kurikulum Berbasis Cinta (KBC) secara utuh dan konsisten pada seluruh komponen."),
           ]
         }]
       });
@@ -346,7 +430,7 @@ export default function ModulAjarHistory() {
                         className="overflow-hidden border-t border-white/20 bg-white/20"
                       >
                         <div className="p-6 space-y-6 text-sm text-slate-700">
-                          <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100 grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="bg-emerald-50/80 p-4 rounded-2xl border border-emerald-100 grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                               <p className="text-xs text-slate-500 font-semibold">Elemen</p>
                               <p className="font-bold text-slate-800">{item.data?.identitas?.elemen || '-'}</p>
@@ -356,10 +440,24 @@ export default function ModulAjarHistory() {
                               <p className="font-bold text-slate-800">{item.data?.identitas?.model || '-'}</p>
                             </div>
                             <div>
+                              <p className="text-xs text-slate-500 font-semibold">Tema KBC Utama</p>
+                              <p className="font-bold text-emerald-800">{item.data?.identitas?.temaKbcUtama || 'Cinta Allah & Sesama'}</p>
+                            </div>
+                            <div>
                               <p className="text-xs text-slate-500 font-semibold">Jumlah ATP Digunakan</p>
                               <p className="font-bold text-emerald-700">{item.atps?.length || 0} ATP</p>
                             </div>
                           </div>
+
+                          {item.data?.identitas?.integrasiKbc && (
+                            <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-4 rounded-2xl border border-emerald-200 space-y-1">
+                              <h4 className="font-bold text-emerald-900 text-xs uppercase tracking-wider">Integrasi Kurikulum Berbasis Cinta (KBC)</h4>
+                              <p className="text-xs text-emerald-800">{item.data.identitas.integrasiKbc}</p>
+                              {item.data.identitas.nilaiKarakter && (
+                                <p className="text-[11px] text-emerald-700 font-medium"><strong>Nilai Karakter:</strong> {item.data.identitas.nilaiKarakter}</p>
+                              )}
+                            </div>
+                          )}
 
                           <div className="space-y-2">
                             <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider text-slate-400">ATP yang Digunakan:</h4>
@@ -385,7 +483,7 @@ export default function ModulAjarHistory() {
                             <div className="space-y-3">
                               {item.data?.langkahPembelajaran?.map((lp: any, i: number) => (
                                 <div key={i} className="bg-white/60 p-4 rounded-2xl border border-slate-100 space-y-2">
-                                  <h5 className="font-bold text-emerald-800 text-xs">Pertemuan {lp.pertemuan} ({lp.waktu})</h5>
+                                  <h5 className="font-bold text-emerald-800 text-xs">Pertemuan {lp.pertemuan} ({lp.waktu || '2 JP x 35 Menit'})</h5>
                                   <div className="text-xs space-y-1 text-slate-600">
                                     <p><strong>Pendahuluan:</strong> {lp.pendahuluan}</p>
                                     <p><strong>Kegiatan Inti:</strong> {lp.inti}</p>
@@ -395,6 +493,13 @@ export default function ModulAjarHistory() {
                               ))}
                             </div>
                           </div>
+
+                          {item.data?.outputSummary?.penegasanKbc && (
+                            <div className="bg-white/80 p-4 rounded-2xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                              <h4 className="font-bold text-slate-900 text-xs">Penegasan KBC & Status Validasi</h4>
+                              <p className="text-slate-600">{item.data.outputSummary.penegasanKbc}</p>
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     )}

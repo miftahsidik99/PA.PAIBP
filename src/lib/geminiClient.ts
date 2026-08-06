@@ -153,65 +153,186 @@ export async function generateModulAjarClient(
 ): Promise<any> {
   const ai = getAI(apiKey);
 
-  const prompt = `Anda adalah Tim Ahli Kurikulum Pendidikan Indonesia (Kemendikdasmen, Pengembang Kurikulum Merdeka, Ahli Deep Learning). 
-Tugas Anda adalah menyusun MODUL AJAR LENGKAP (BUKAN RINGKASAN) mata pelajaran PAI dan Budi Pekerti Kelas ${selectedGrade} SD berdasarkan Permendikdasmen Nomor 13 Tahun 2025.
+  const prompt = `Bertindaklah sebagai Tim Ahli Kurikulum Pendidikan Indonesia yang terdiri atas:
+1. Ahli Kurikulum Kemendikdasmen
+2. Pengembang Modul Ajar
+3. Pengembang Kurikulum Merdeka
+4. Pengembang Pembelajaran Mendalam (Deep Learning)
+5. Pengawas Sekolah
+6. Asesor Akreditasi Sekolah
+7. Guru Inti Nasional
+8. Editor Bahasa Indonesia
+9. Desainer Dokumen Pendidikan
 
-ATP yang dipilih:
+Anda memiliki pengalaman lebih dari 20 tahun dalam menyusun perangkat ajar SD.
+
+Gunakan Bahasa Indonesia baku, profesional, jelas, dan mudah dipahami guru SD.
+Hasil yang dibuat Wajib MODUL AJAR LENGKAP (SANGAT RINCI, BUKAN RINGKASAN), runtut, dan siap cetak/dipindahkan ke Word.
+Jika data belum lengkap, gunakan placeholder [DIISI OLEH GURU] secara jelas. Jangan mengarang data yang belum diberikan.
+
+LANDASAN PENYUSUNAN:
+1. Permendikdasmen Nomor 13 Tahun 2025
+2. Capaian Pembelajaran (CP) PAIBP Kelas ${selectedGrade} SD (Fase ${selectedGrade <= 2 ? 'A' : selectedGrade <= 4 ? 'B' : 'C'})
+3. Prinsip Pembelajaran Mendalam (Deep Learning)
+4. 8 Dimensi Profil Lulusan
+5. Prinsip 8,3,3,4
+6. Kurikulum Merdeka
+7. KURIKULUM BERBASIS CINTA (KBC) untuk PAIBP SD
+
+5 TEMA UTAMA KURIKULUM BERBASIS CINTA (KBC) YANG WAJIB DIINTEGRASIKAN:
+1. Cinta Allah dan Rasul-Nya
+2. Cinta Ilmu
+3. Cinta Lingkungan
+4. Cinta Diri dan Sesama
+5. Cinta Tanah Air
+
+INFORMASI MASUKAN:
+- Kelas: ${selectedGrade} SD (Fase ${selectedGrade <= 2 ? 'A' : selectedGrade <= 4 ? 'B' : 'C'})
+- Guru: ${profile?.namaGuru || '[DIISI OLEH GURU]'}
+- Sekolah: ${profile?.namaSekolah || '[DIISI OLEH GURU]'}
+- Tahun Pelajaran: ${profile?.tahunPelajaran || '2024/2025'}
+- Total Alokasi Waktu: ${totalJp} JP (${pertemuan} Pertemuan x 35 Menit)
+- Karakteristik Peserta Didik: ${karakteristik || 'Reguler/Tipikal'}
+- ATP yang dipilih:
 ${selectedAtp.map((atp: string, i: number) => `${i + 1}. ${atp}`).join('\n')}
 
-Identitas Sekolah:
-Guru: ${profile?.namaGuru || '[DIISI OLEH GURU]'}
-Sekolah: ${profile?.namaSekolah || '[DIISI OLEH GURU]'}
-Tahun Pelajaran: 2024/2025
-Karakteristik Peserta Didik: ${karakteristik || 'Reguler/Tipikal'}
+PRINSIP INSERSI KBC DALAM MODUL:
+1. Seluruh modul harus menyatu dengan pembelajaran mendalam (8,3,3,4) dan Kurikulum Berbasis Cinta (KBC).
+2. KBC tidak boleh hanya disebut di satu bagian, tetapi harus diinsersi ke SELURUH komponen modul (Tujuan, Kegiatan, Asesmen, Rubrik, Refleksi, LKPD, Lampiran).
+3. MODEL, PENDEKATAN, METODE, MEDIA: Tentukan HANYA 1 model utama (misal: PBL/PJBL/Discovery), HANYA 1 pendekatan utama (misal: TaRL/CRT/Saintifik), HANYA 1 metode dominan, HANYA 1 media utama.
 
-IKUTI PRINSIP PEMBELAJARAN MENDALAM (DEEP LEARNING) 8,3,3,4:
-- 8 Dimensi Profil Lulusan: Beriman bertakwa, Berakhlak mulia, Mandiri, Bernalar kritis, Kreatif, Bergotong royong, Berkebinekaan global, Sehat jasmani rohani.
-- 3 Prinsip: Mindful, Meaningful, Joyful Learning.
-- 3 Pengalaman: Memahami, Mengaplikasi, Merefleksi.
-- 4 Kerangka: Praktik Pedagogis, Kemitraan, Lingkungan, Teknologi Digital.
+STRUKTUR MODUL AJAR YANG HARUS DIHASILKAN (23 KOMPONEN DALAM FORMAT JSON):
 
-STRUKTUR MODUL YANG HARUS DIHASILKAN (LENGKAP):
-1. IDENTITAS: Nama Guru, Sekolah, Fase, Kelas, Semester, Mapel, Elemen, Materi, Alokasi Waktu (total ${totalJp} JP), Model (Maks 1), Pendekatan (Maks 1), Metode (Maks 1), Media (Maks 1), Sumber, Karakteristik Siswa (Gunakan: ${karakteristik || 'Reguler/Tipikal'}), Target, Sarana Prasarana.
-KETENTUAN KHUSUS (PENTING): 
-- Model: Tentukan HANYA 1 model utama (misal: PBL, PJBL, atau Discovery).
-- Pendekatan: Tentukan HANYA 1 pendekatan utama (misal: TaRL, CRT, atau Saintifik).
-- Metode: Tentukan HANYA 1 metode yang paling dominan (misal: Diskusi, Ceramah, atau Tanya Jawab).
-- Media: Tentukan HANYA 1 media utama yang benar-benar digunakan.
-- PASTIKAN JUMLAHNYA PAS 1 UNTUK MASING-MASING POIN DI ATAS.
-2. KOMPONEN INTI: Capaian Pembelajaran, Tujuan Pembelajaran (KKO), Alur Tujuan Pembelajaran, Pemahaman Bermakna (manfaat nyata), Pertanyaan Pemantik (min 5).
-3. DIAGNOSTIK: Deskripsi & Instrumen Diagnostik Kognitif & Non-Kognitif.
-4. PEMBELAJARAN MENDALAM: Implementasi kontekstual 8,3,3,4 pada materi ini.
-5. LANGKAH PEMBELAJARAN: Rinci per pertemuan (${pertemuan} pertemuan). Setiap pertemuan ada: Pendahuluan, Inti (aktivitas guru & siswa rinci), Penutup. Sertakan estimasi waktu.
-6. ASESMEN & INSTRUMEN: Diagnostik, Formatif, Sumatif. Pilih instrumen & rubrik paling relevan (Observasi/Kinerja/Tes dll).
-7. PENGAYAAN & REMEDIAL: Rencana lengkap.
-8. REFLEKSI: Refleksi Guru (min 10 soal) & Refleksi Siswa (min 10 soal).
-9. LKPD: Judul, Tujuan, Petunjuk, Alat, Langkah, Tugas, Soal, Ruang Jawaban.
-10. BAHAN BACAAN, GLOSARIUM, DAFTAR PUSTAKA.
-11. LAMPIRAN: (Lembar observasi, jurnal, bank soal, dll).
-12. TABEL VALIDASI: Tabel pengecekan mandiri AI (Kelengkapan, Kesesuaian, Placeholder, Konsistensi).
+Hasilkan HANYA output berupa objek JSON valid (tanpa markdown format codeblock, tanpa teks pengantar) dengan struktur berikut:
 
-Format balasan berupa JSON dengan struktur berikut (Hanya output JSON, tanpa markdown code block, tanpa teks pengantar):
 {
-  "identitas": { "elemen": "...", "materi": "...", "model": "...", "pendekatan": "...", "metode": "...", "media": "...", "sumber": "...", "karakteristik": "...", "target": "...", "sarana": "..." },
-  "komponenInti": { "cp": "...", "tp": "...", "atp": "...", "pemahamanBermakna": "...", "pertanyaanPemantik": ["..."] },
-  "diagnostik": { "deskripsi": "...", "instrumenKognitif": "...", "instrumenNonKognitif": "..." },
-  "pembelajaranMendalam": "Deskripsi implementasi 8,3,3,4...",
-  "langkahPembelajaran": [
-    { "pertemuan": 1, "pendahuluan": "...", "inti": "...", "penutup": "...", "waktu": "..." }
+  "cover": {
+    "judul": "MODUL AJAR PAI DAN BUDI PEKERTI SD BERBASIS PERMENDIKDASMEN 13 TAHUN 2025 DAN KURIKULUM BERBASIS CINTA (KBC)",
+    "penegasan": "Disusun dengan Semangat Kurikulum Berbasis Cinta (KBC)"
+  },
+  "identitas": {
+    "elemen": "...",
+    "materi": "...",
+    "model": "...",
+    "pendekatan": "...",
+    "metode": "...",
+    "media": "...",
+    "sumber": "...",
+    "karakteristik": "${karakteristik || 'Reguler/Tipikal'}",
+    "target": "...",
+    "sarana": "...",
+    "integrasiKbc": "Uraian integrasi nilai-nilai Kurikulum Berbasis Cinta...",
+    "temaKbcUtama": "Tentukan 1 atau kombinasi tema KBC utama (Cinta Allah & Rasul/Cinta Ilmu/Cinta Lingkungan/Cinta Diri & Sesama/Cinta Tanah Air)",
+    "nilaiKarakter": "Nilai karakter spesifik KBC yang ditumbuhkan..."
+  },
+  "cp": {
+    "deskripsi": "Deskripsi CP PAI BP yang relevan...",
+    "keterkaitanKbc": "Penjelasan rinci keterkaitan Capaian Pembelajaran dengan Tema KBC..."
+  },
+  "komponenInti": {
+    "cp": "...",
+    "tp": "Tujuan Pembelajaran dengan KKO terukur yang memuat sikap, pengetahuan, keterampilan terikat KBC...",
+    "atp": "Alur Tujuan Pembelajaran bertahap yang menguatkan KBC...",
+    "pemahamanBermakna": "Manfaat nyata pembelajaran di rumah, sekolah, masyarakat, dan lingkungan...",
+    "pertanyaanPemantik": [
+      "Pertanyaan 1 (berpikir kritis & rasa syukur)",
+      "Pertanyaan 2 (empati & kasih sayang)",
+      "Pertanyaan 3 (tanggung jawab & adab)",
+      "Pertanyaan 4 (praktik cinta lingkungan/sesama)",
+      "Pertanyaan 5 (perilaku cinta Allah & Rasul secara nyata)"
+    ]
+  },
+  "pemetaanKbc": [
+    {
+      "tema": "Tema KBC",
+      "materiKegiatan": "Integrasi pada materi & kegiatan pembelajaran",
+      "pembiasaanKarakter": "Bentuk pembiasaan adab & karakter peserta didik"
+    }
   ],
-  "asesmen": { "jenis": "...", "deskripsi": "...", "instrumen": "...", "rubrik": "..." },
-  "pengayaanRemedial": { "pengayaan": "...", "remedial": "..." },
-  "refleksi": { "guru": ["..."], "siswa": ["..."] },
-  "lkpd": { "judul": "...", "tujuan": "...", "petunjuk": "...", "alat": "...", "langkah": ["..."], "tugas": "...", "soal": ["..."] },
-  "bacaanGlosariumPustaka": { "bacaanGuru": "...", "bacaanSiswa": "...", "glosarium": "...", "pustaka": "..." },
-  "lampiran": "...",
+  "diagnostik": {
+    "deskripsi": "Deskripsi asesmen diagnostik...",
+    "instrumenKognitif": "Instrumen diagnostik kognitif...",
+    "instrumenNonKognitif": "Instrumen diagnostik non-kognitif (menggali kebiasaan baik, adab, kepedulian, kemandirian, dan kesiapan sikap)..."
+  },
+  "pembelajaranMendalam": "Penjelasan rinci implementasi 8 Dimensi Profil Lulusan, 3 Prinsip (Mindful, Meaningful, Joyful Learning), 3 Pengalaman (Memahami, Mengaplikasi, Merefleksi), dan 4 Kerangka Pembelajaran (Praktik Pedagogis, Kemitraan, Lingkungan, Teknologi Digital) yang terintegrasi KBC...",
+  "langkahPembelajaran": [
+    {
+      "pertemuan": 1,
+      "waktu": "2 JP x 35 Menit",
+      "pendahuluan": "Rinci aktivitas pembukaan, doa bersama dengan adab rasa cinta Allah, apersepsi, penyampaian tujuan dan nilai KBC...",
+      "inti": "Aktivitas guru dan peserta didik secara rinci. Menampilkan diskusi kelompok, empati, kepedulian sesama, aplikasi nilai KBC...",
+      "penutup": "Rinci kegiatan penutup, refleksi singkat nilai cinta, konfirmasi pembiasaan baik, doa dan salam..."
+    }
+  ],
+  "asesmen": {
+    "jenis": "Diagnostik, Formatif, dan Sumatif",
+    "deskripsi": "Uraian pelaksanaan asesmen yang selaras dengan KBC...",
+    "instrumen": "Bentuk instrumen (Observasi, Kinerja, Produk, Tes Tertulis/Lisan, Praktik, Portofolio)...",
+    "rubrik": "Deskripsi rubrik penilaian sikap, pengetahuan, dan keterampilan KBC..."
+  },
+  "pengayaanRemedial": {
+    "pengayaan": "Kegiatan pengayaan lengkap untuk memperluas pengalaman mempraktikkan nilai cinta secara nyata...",
+    "remedial": "Kegiatan remedial lengkap untuk membantu pemahaman & pembiasaan sikap baik..."
+  },
+  "refleksi": {
+    "guru": [
+      "Soal refleksi guru 1...", "Soal 2...", "Soal 3...", "Soal 4...", "Soal 5...",
+      "Soal 6...", "Soal 7...", "Soal 8...", "Soal 9...", "Soal 10 (fokus pada keterlaksanaan integrasi KBC)..."
+    ],
+    "siswa": [
+      "Pertanyaan refleksi siswa 1...", "Pertanyaan 2...", "Pertanyaan 3...", "Pertanyaan 4...", "Pertanyaan 5...",
+      "Pertanyaan 6...", "Pertanyaan 7...", "Pertanyaan 8...", "Pertanyaan 9...", "Pertanyaan 10 (fokus rasa senang & praktik nilai cinta)..."
+    ]
+  },
+  "lkpd": {
+    "judul": "Lembar Kerja Peserta Didik Berbasis Cinta",
+    "tujuan": "...",
+    "petunjuk": "...",
+    "alat": "...",
+    "langkah": ["Langkah 1...", "Langkah 2..."],
+    "tugas": "...",
+    "soal": ["Soal 1...", "Soal 2..."],
+    "ruangJawaban": "Tempat peserta didik menuliskan jawaban dan komitmen perilaku cinta..."
+  },
+  "bacaanGlosariumPustaka": {
+    "bacaanGuru": "...",
+    "bacaanSiswa": "...",
+    "glosarium": "Glosarium istilah penting dan istilah KBC...",
+    "pustaka": "Daftar pustaka resmi..."
+  },
+  "lampiran": "Lampiran lengkap memuat Lembar Observasi Sikap KBC, Jurnal Mengajar, Rubrik Penilaian, Instrumen Diagnostik, dan Bank Soal...",
   "validasi": [
-    { "aspek": "...", "status": "...", "catatan": "..." }
-  ]
+    { "aspek": "Kelengkapan Komponen Modul", "status": "Lengkap", "catatan": "Seluruh 23 komponen telah terpenuhi secara terstruktur." },
+    { "aspek": "Kesesuaian Data Input", "status": "Sesuai", "catatan": "Sesuai dengan kelas, ATP, dan profil guru/sekolah." },
+    { "aspek": "Penggunaan Placeholder", "status": "Tepat", "catatan": "Menggunakan [DIISI OLEH GURU] hanya jika data belum tersedia." },
+    { "aspek": "Konsistensi Tujuan, Kegiatan, & Asesmen", "status": "Konsisten", "catatan": "Tujuan, langkah pembelajaran, dan asesmen saling terhubung erat." },
+    { "aspek": "Insersi Kurikulum Berbasis Cinta (KBC)", "status": "Terintegrasi Penuh", "catatan": "KBC telah diinsersikan secara konsisten di seluruh bagian modul." }
+  ],
+  "outputSummary": {
+    "komponenDipenuhi": [
+      "Cover & Identitas Modul Berbasis KBC",
+      "CP, TP, ATP, & Pemetaan Integrasi KBC",
+      "Pemahaman Bermakna & 5 Pertanyaan Pemantik",
+      "Diagnostik Kognitif & Non-Kognitif",
+      "Pembelajaran Mendalam (Deep Learning 8,3,3,4)",
+      "Langkah Pembelajaran Rinci per Pertemuan",
+      "Asesmen Formatif & Sumatif dengan Rubrik Sikap KBC",
+      "Pengayaan & Remedial Berbasis Pembiasaan Cinta",
+      "10 Refleksi Guru & 10 Refleksi Siswa",
+      "LKPD Siap Cetak Berbasis Cinta",
+      "Bahan Bacaan, Glosarium KBC, & Daftar Pustaka",
+      "Lampiran & Tabel Validasi Otomatis"
+    ],
+    "placeholderGuru": [
+      "[DIISI OLEH GURU] - Nama Guru jika belum diisi di profil",
+      "[DIISI OLEH GURU] - Nama Sekolah jika belum diisi di profil"
+    ],
+    "saranPenyempurnaan": "Dapat disesuaikan dengan media fisik lokal dan kondisi nyata di ruang kelas masing-masing sekolah.",
+    "penegasanKbc": "Modul Ajar ini telah disusun secara utuh dengan mengintegrasikan 5 Tema Utama Kurikulum Berbasis Cinta (KBC) secara konsisten pada setiap komponen."
+  }
 }
 
-PASTIKAN KONTEN SANGAT RINCI DAN SIAP CETAK.`;
+PASTIKAN SELURUH DOKUMEN SANGAT LENGKAP, SIAP CETAK, BUKAN RINGKASAN.`;
 
   let text = '';
   let retries = 4;
