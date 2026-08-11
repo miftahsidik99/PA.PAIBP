@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useStore, JurnalEntry } from '../store/useStore';
 import { Save, Download, Plus, Trash2, Calendar, FileText, BookOpen, Edit, Check, X } from 'lucide-react';
@@ -28,6 +28,8 @@ export default function Jurnal() {
 
   // Form state
   const [tanggal, setTanggal] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [isManualDate, setIsManualDate] = useState(false);
+  const lastKeyRef = useRef<string>('');
   const [jamPelajaran, setJamPelajaran] = useState('');
   const [rombel, setRombel] = useState('1');
   const [mataPelajaran, setMataPelajaran] = useState('Pendidikan Agama Islam dan Budi Pekerti');
@@ -114,9 +116,9 @@ export default function Jurnal() {
 
     setAvailableAtps(atpsForMonth);
     if (atpsForMonth.length > 0) {
-      setAtp(prev => atpsForMonth.includes(prev) ? prev : atpsForMonth[0]);
+      setAtp(prev => (prev === '[-]' || atpsForMonth.includes(prev)) ? prev : atpsForMonth[0]);
     } else {
-      setAtp('');
+      setAtp('[-]');
     }
   }, [selectedGrade, selectedMonth, selectedYear, schedules, calendarData, savedProtas]);
 
@@ -157,36 +159,50 @@ export default function Jurnal() {
           setTanggal(dates[0].date);
         }
       } else {
-        setTanggal('');
+        const defaultDate = `${selectedYear}-${String(monthIdx + 1).padStart(2, '0')}-01`;
+        if (!tanggal || tanggal.substring(0, 7) !== `${selectedYear}-${String(monthIdx + 1).padStart(2, '0')}`) {
+          setTanggal(defaultDate);
+        }
       }
     } else {
       setAvailableDates([]);
+      const monthIdx = MONTH_OPTIONS.indexOf(selectedMonth);
+      if (monthIdx !== -1) {
+        const defaultDate = `${selectedYear}-${String(monthIdx + 1).padStart(2, '0')}-01`;
+        if (!tanggal || tanggal.substring(0, 7) !== `${selectedYear}-${String(monthIdx + 1).padStart(2, '0')}`) {
+          setTanggal(defaultDate);
+        }
+      }
     }
   }, [selectedGrade, selectedMonth, selectedYear, schedules, calendarData]);
 
   useEffect(() => {
     // Auto-calculate kehadiran based on selected date and grade
     if (tanggal && selectedGrade) {
-      const yyyyMm = tanggal.substring(0, 7); // e.g. '2026-08'
-      const gradeAttendance = attendance?.find(a => a.grade === selectedGrade && a.month === yyyyMm);
-      if (gradeAttendance && gradeAttendance.records && gradeAttendance.records[tanggal]) {
-        const recordsForDate = gradeAttendance.records[tanggal];
-        let h = 0, s = 0, i = 0, a = 0;
-        Object.values(recordsForDate).forEach(status => {
-          if (status === 'H') h++;
-          if (status === 'S') s++;
-          if (status === 'I') i++;
-          if (status === 'A') a++;
-        });
-        setHadir(h);
-        setSakit(s);
-        setIzin(i);
-        setAlpa(a);
-      } else {
-        setHadir(0);
-        setSakit(0);
-        setIzin(0);
-        setAlpa(0);
+      const currentKey = `${selectedGrade}_${tanggal}`;
+      if (lastKeyRef.current !== currentKey) {
+        lastKeyRef.current = currentKey;
+        const yyyyMm = tanggal.substring(0, 7); // e.g. '2026-08'
+        const gradeAttendance = attendance?.find(a => a.grade === selectedGrade && a.month === yyyyMm);
+        if (gradeAttendance && gradeAttendance.records && gradeAttendance.records[tanggal]) {
+          const recordsForDate = gradeAttendance.records[tanggal];
+          let h = 0, s = 0, i = 0, a = 0;
+          Object.values(recordsForDate).forEach(status => {
+            if (status === 'H') h++;
+            if (status === 'S') s++;
+            if (status === 'I') i++;
+            if (status === 'A') a++;
+          });
+          setHadir(h);
+          setSakit(s);
+          setIzin(i);
+          setAlpa(a);
+        } else {
+          setHadir(0);
+          setSakit(0);
+          setIzin(0);
+          setAlpa(0);
+        }
       }
     }
   }, [tanggal, selectedGrade, attendance]);
@@ -211,6 +227,16 @@ export default function Jurnal() {
       items: jurnalState?.items || {}
     });
   }, [selectedMonth, selectedYear, pengawasNama, pengawasNip]);
+
+  const resetFormFields = () => {
+    if (availableAtps.length > 0) {
+      setAtp(availableAtps[0]);
+    } else {
+      setAtp('[-]');
+    }
+    setMetode('');
+    setCatatan('');
+  };
 
   const handleAddEntry = () => {
     if (!tanggal || !atp) {
@@ -271,10 +297,7 @@ export default function Jurnal() {
       setShowToast("Entri jurnal berhasil ditambahkan!");
     }
 
-    // Reset some fields
-    setAtp('');
-    setMetode('');
-    setCatatan('');
+    resetFormFields();
   };
 
   const handleEditEntry = (entry: JurnalEntry) => {
@@ -290,6 +313,13 @@ export default function Jurnal() {
     setAlpa(entry.kehadiran.alpa || 0);
     setMetode(entry.metode || '');
     setCatatan(entry.catatan || '');
+
+    const isDateInSchedule = availableDates.some(d => d.date === entry.tanggal);
+    if (!isDateInSchedule) {
+      setIsManualDate(true);
+    } else {
+      setIsManualDate(false);
+    }
 
     // Scroll smoothly to the input form
     window.scrollTo({ top: 300, behavior: 'smooth' });
@@ -308,9 +338,7 @@ export default function Jurnal() {
     });
     if (editingId === id) {
       setEditingId(null);
-      setAtp('');
-      setMetode('');
-      setCatatan('');
+      resetFormFields();
     }
     setShowDeleteConfirmId(null);
     setShowToast("Entri jurnal berhasil dihapus!");
@@ -377,10 +405,7 @@ export default function Jurnal() {
         setShowToast("Entri jurnal yang sedang dikerjakan berhasil disimpan!");
       }
 
-      // Reset the form fields
-      setAtp('');
-      setMetode('');
-      setCatatan('');
+      resetFormFields();
     } else {
       // If the form is empty, verify all current month data is in store
       setShowToast("Semua data Jurnal berhasil disimpan ke penyimpanan lokal!");
@@ -390,9 +415,7 @@ export default function Jurnal() {
   const handleClearData = () => {
     if (currentGradeEntries.length === 0) {
       // If there are no table entries, just clear the form fields
-      setAtp('');
-      setMetode('');
-      setCatatan('');
+      resetFormFields();
       setJamPelajaran('');
       setEditingId(null);
       setShowToast("Form input berhasil dibersihkan.");
@@ -404,9 +427,7 @@ export default function Jurnal() {
 
   const handleClearDataConfirm = () => {
     // 1. Clear form fields
-    setAtp('');
-    setMetode('');
-    setCatatan('');
+    resetFormFields();
     setJamPelajaran('');
     setEditingId(null);
 
@@ -690,11 +711,39 @@ export default function Jurnal() {
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Tanggal Pembelajaran <span className="text-red-500">*</span></label>
-                {availableDates.length > 0 ? (
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-bold text-slate-600">Tanggal Pembelajaran <span className="text-red-500">*</span></label>
+                  {availableDates.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsManualDate(!isManualDate)}
+                      className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 transition-colors"
+                    >
+                      {isManualDate ? 'Pilih dari Jadwal' : 'Input Tanggal Bebas'}
+                    </button>
+                  )}
+                </div>
+                {availableDates.length > 0 && !isManualDate ? (
                   <select
                     value={tanggal}
-                    onChange={(e) => setTanggal(e.target.value)}
+                    onChange={(e) => {
+                      setTanggal(e.target.value);
+                      if (e.target.value) {
+                        try {
+                          const d = parseISO(e.target.value);
+                          if (!isNaN(d.getTime())) {
+                            const mName = MONTH_OPTIONS[d.getMonth()];
+                            const yNum = d.getFullYear();
+                            if (mName !== selectedMonth || yNum !== selectedYear) {
+                              setSelectedMonth(mName);
+                              setSelectedYear(yNum);
+                            }
+                          }
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
                   >
                     {availableDates.map(d => (
@@ -705,7 +754,25 @@ export default function Jurnal() {
                   <input
                     type="date"
                     value={tanggal}
-                    onChange={(e) => setTanggal(e.target.value)}
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      setTanggal(newVal);
+                      if (newVal) {
+                        try {
+                          const d = parseISO(newVal);
+                          if (!isNaN(d.getTime())) {
+                            const mName = MONTH_OPTIONS[d.getMonth()];
+                            const yNum = d.getFullYear();
+                            if (mName !== selectedMonth || yNum !== selectedYear) {
+                              setSelectedMonth(mName);
+                              setSelectedYear(yNum);
+                            }
+                          }
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"
                   />
                 )}
@@ -746,49 +813,57 @@ export default function Jurnal() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Alur Tujuan Pembelajaran <span className="text-red-500">*</span></label>
-                {availableAtps.length > 0 ? (
+                <div className="space-y-2">
                   <select
-                    value={atp}
-                    onChange={(e) => setAtp(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white"
+                    value={availableAtps.includes(atp) || atp === '[-]' ? atp : 'custom'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'custom') {
+                        setAtp('');
+                      } else {
+                        setAtp(val);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm bg-white font-medium"
                   >
+                    <option value="[-]">[-] (Tanggal Pembelajaran NON-HEB / Tanpa ATP)</option>
                     {availableAtps.map((opt, i) => (
                       <option key={i} value={opt}>{opt}</option>
                     ))}
+                    <option value="custom">Ketik / Paste ATP Manual...</option>
                   </select>
-                ) : (
-                  <textarea
-                    value={atp}
-                    onChange={(e) => setAtp(e.target.value)}
-                    placeholder="Ketik atau paste ATP di sini..."
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm min-h-[80px]"
-                  />
-                )}
-                {availableAtps.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">Tidak ada ATP yang dijadwalkan untuk bulan ini di Program Tahunan.</p>
-                )}
+
+                  {(atp !== '[-]' && !availableAtps.includes(atp)) && (
+                    <textarea
+                      value={atp}
+                      onChange={(e) => setAtp(e.target.value)}
+                      placeholder="Ketik atau paste ATP di sini..."
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm min-h-[80px]"
+                    />
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-2">Kehadiran Siswa</label>
                 <div className="grid grid-cols-4 gap-2">
-                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <span className="bg-slate-100 px-2 py-2 text-xs font-bold text-slate-500 border-r border-slate-200" title="Hadir">H</span>
-                    <input type="number" min="0" value={hadir} readOnly className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent cursor-not-allowed text-slate-500" title="Terisi otomatis dari Presensi" />
+                    <input type="number" min="0" value={hadir} onChange={(e) => setHadir(Math.max(0, parseInt(e.target.value) || 0))} className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent text-slate-700" title="Jumlah Hadir" />
                   </div>
-                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <span className="bg-slate-100 px-2 py-2 text-xs font-bold text-slate-500 border-r border-slate-200" title="Sakit">S</span>
-                    <input type="number" min="0" value={sakit} readOnly className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent cursor-not-allowed text-slate-500" title="Terisi otomatis dari Presensi" />
+                    <input type="number" min="0" value={sakit} onChange={(e) => setSakit(Math.max(0, parseInt(e.target.value) || 0))} className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent text-slate-700" title="Jumlah Sakit" />
                   </div>
-                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <span className="bg-slate-100 px-2 py-2 text-xs font-bold text-slate-500 border-r border-slate-200" title="Izin">I</span>
-                    <input type="number" min="0" value={izin} readOnly className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent cursor-not-allowed text-slate-500" title="Terisi otomatis dari Presensi" />
+                    <input type="number" min="0" value={izin} onChange={(e) => setIzin(Math.max(0, parseInt(e.target.value) || 0))} className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent text-slate-700" title="Jumlah Izin" />
                   </div>
-                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                  <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
                     <span className="bg-slate-100 px-2 py-2 text-xs font-bold text-slate-500 border-r border-slate-200" title="Alpa">A</span>
-                    <input type="number" min="0" value={alpa} readOnly className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent cursor-not-allowed text-slate-500" title="Terisi otomatis dari Presensi" />
+                    <input type="number" min="0" value={alpa} onChange={(e) => setAlpa(Math.max(0, parseInt(e.target.value) || 0))} className="w-full px-1 py-1 text-sm border-0 focus:ring-0 text-center bg-transparent text-slate-700" title="Jumlah Alpa" />
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">* Data kehadiran ditarik otomatis dari Presensi</p>
+                <p className="text-[10px] text-slate-400 mt-1">* Data ditarik otomatis dari Presensi (bisa diedit manual)</p>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">Metode/Model Pembelajaran (Opsional)</label>
@@ -874,34 +949,44 @@ export default function Jurnal() {
               </div>
             ) : (
               <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white flex-1">
-                <table className="w-full text-left text-sm border-collapse min-w-[800px]">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
+                <table className="w-full text-left text-xs md:text-sm border-collapse min-w-[1000px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase text-[10px] tracking-wider">
                     <tr>
                       <th className="p-3 w-12 text-center">No</th>
-                      <th className="p-3 w-32">Tanggal</th>
-                      <th className="p-3 w-16 text-center">Jam</th>
+                      <th className="p-3 w-32">Tanggal / Jam</th>
+                      <th className="p-3 w-28">Rombel / Mapel</th>
                       <th className="p-3">ATP</th>
                       <th className="p-3 w-40 text-center">Kehadiran (H/S/I/A)</th>
+                      <th className="p-3 w-28">Metode</th>
+                      <th className="p-3 w-36">Catatan</th>
                       <th className="p-3 w-16 text-center">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 text-xs md:text-sm">
                     {currentGradeEntries.map((entry, idx) => (
                       <tr key={entry.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-3 text-center text-slate-400 font-medium">{idx + 1}</td>
-                        <td className="p-3 text-slate-800 font-medium">
-                          {format(parseISO(entry.tanggal), "dd MMM yyyy", { locale: localeId })}
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-800">
+                            {format(parseISO(entry.tanggal), "dd MMM yyyy", { locale: localeId })}
+                          </div>
+                          <span className="text-xs text-slate-500">Jam: {entry.jamPelajaran || '-'}</span>
                         </td>
-                        <td className="p-3 text-center text-slate-600">{entry.jamPelajaran || '-'}</td>
-                        <td className="p-3 text-slate-600 max-w-xs truncate" title={entry.atp}>{entry.atp}</td>
+                        <td className="p-3">
+                          <div className="font-semibold text-slate-700">Rombel {entry.rombel || '-'}</div>
+                          <span className="text-[10px] text-slate-500 block truncate max-w-[120px]" title={entry.mataPelajaran}>{entry.mataPelajaran}</span>
+                        </td>
+                        <td className="p-3 text-slate-600 max-w-xs break-words font-medium" title={entry.atp}>{entry.atp}</td>
                         <td className="p-3 text-center text-slate-600">
-                          <span className="inline-flex gap-2">
-                            <span className="text-emerald-600 font-bold" title="Hadir">{entry.kehadiran.hadir || 0}</span>
-                            <span className="text-amber-600" title="Sakit">{entry.kehadiran.sakit}</span>
-                            <span className="text-blue-600" title="Izin">{entry.kehadiran.izin}</span>
-                            <span className="text-red-600" title="Alpa">{entry.kehadiran.alpa}</span>
+                          <span className="inline-flex gap-2 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100 font-bold">
+                            <span className="text-emerald-600" title="Hadir">H:{entry.kehadiran.hadir || 0}</span>
+                            <span className="text-amber-500" title="Sakit">S:{entry.kehadiran.sakit || 0}</span>
+                            <span className="text-blue-500" title="Izin">I:{entry.kehadiran.izin || 0}</span>
+                            <span className="text-red-500" title="Alpa">A:{entry.kehadiran.alpa || 0}</span>
                           </span>
                         </td>
+                        <td className="p-3 text-slate-600 truncate max-w-[100px]" title={entry.metode || '-'}>{entry.metode || '-'}</td>
+                        <td className="p-3 text-slate-600 truncate max-w-[120px]" title={entry.catatan || '-'}>{entry.catatan || '-'}</td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
                             <button 
