@@ -17,7 +17,7 @@ const getRandomColor = () => {
 };
 
 export default function ModulAjarHistory() {
-  const { modulAjarHistories, clearModulAjarHistories, deleteModulAjarHistory, profile } = useStore();
+  const { modulAjarHistories, clearModulAjarHistories, deleteModulAjarHistory, profile, students: storeStudents } = useStore();
   const navigate = useNavigate();
 
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
@@ -25,11 +25,24 @@ export default function ModulAjarHistory() {
 
   const handleDownloadDocx = async (item: any) => {
     try {
-      const data = item.data;
+      const data = JSON.parse(JSON.stringify(item.data || {}));
       const grade = item.grade;
       const atps = item.atps;
       const totalJp = atps.length * 4;
       const pertemuan = atps.length;
+
+      if (!data.identitas) {
+        data.identitas = {};
+      }
+
+      const gradeStudents = storeStudents?.[grade] || [];
+      const studentCount = gradeStudents.filter(s => s.nama && s.nama.trim() !== '').length;
+
+      if (studentCount > 0) {
+        data.identitas.target = `${studentCount} Peserta Didik Kelas ${grade} ${profile?.namaSekolah || ''} (${item.karakteristik || 'Heterogen'})`;
+      } else {
+        data.identitas.target = `[DIISI OLEH GURU] Peserta Didik Kelas ${grade} ${profile?.namaSekolah || ''} (${item.karakteristik || 'Heterogen'})`;
+      }
 
       const createHeading = (text: string, level: number = 1) => {
         return new Paragraph({

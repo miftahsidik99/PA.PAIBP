@@ -149,9 +149,14 @@ export async function generateModulAjarClient(
   pertemuan: number,
   profile: any,
   karakteristik: string,
-  apiKey?: string | null
+  apiKey?: string | null,
+  studentCount?: number
 ): Promise<any> {
   const ai = getAI(apiKey);
+
+  const studentInfoStr = studentCount !== undefined && studentCount > 0
+    ? `${studentCount} Peserta Didik`
+    : `[DIISI OLEH GURU] Peserta Didik`;
 
   const prompt = `Bertindaklah sebagai Tim Ahli Kurikulum Pendidikan Indonesia yang terdiri atas:
 1. Ahli Kurikulum Kemendikdasmen
@@ -193,6 +198,7 @@ INFORMASI MASUKAN:
 - Tahun Pelajaran: ${profile?.tahunPelajaran || '2024/2025'}
 - Total Alokasi Waktu: ${totalJp} JP (${pertemuan} Pertemuan x 35 Menit)
 - Karakteristik Peserta Didik: ${karakteristik || 'Reguler/Tipikal'}
+- Target Peserta Didik: ${studentInfoStr} Kelas ${selectedGrade} ${profile?.namaSekolah || ''} (${karakteristik || 'Reguler/Tipikal'})
 - ATP yang dipilih:
 ${selectedAtp.map((atp: string, i: number) => `${i + 1}. ${atp}`).join('\n')}
 
@@ -205,6 +211,7 @@ ATURAN MUTLAK AKOMODASI SELURUH ATP & JUMLAH PERTEMUAN:
 - PENGGUNA MEMILIH TEPAT ${selectedAtp.length} ATP DAN TOTAL ${pertemuan} PERTEMUAN.
 - SELURUH ${selectedAtp.length} ATP YANG DIPILIH HARUS DIBAHAS DAN DIAKOMODASI SECARA LENGKAP PADA SELURUH KOMPONEN MODUL AJAR (Identitas, TP, ATP, Langkah Pembelajaran, Asesmen, LKPD, dst.).
 - PADA SECTION identitas.materi: Wajib mencakup dan menyebutkan seluruh topik dari ${selectedAtp.length} ATP yang dipilih.
+- PADA SECTION identitas.target: Wajib mencantumkan tepat "${studentInfoStr} Kelas ${selectedGrade} ${profile?.namaSekolah || ''} (${karakteristik || 'Reguler/Tipikal'})". DILARANG KERAS mengarang angka acak lain!
 - PADA SECTION komponenInti.tp DAN komponenInti.atp: Wajib membreakdown seluruh ${selectedAtp.length} ATP secara terstruktur.
 - PADA SECTION langkahPembelajaran: HARUS MEMILIKI TEPAT ${pertemuan} OBJEK PERTEMUAN (Pertemuan 1, Pertemuan 2, ... hingga Pertemuan ${pertemuan}).
 - DILARANG HANYA MENAMPILKAN 1 PERTEMUAN ATAU HANYA MEMBREAKDOWN 1 ATP JIKA PENGGUNA MEMILIH LEBIH DARI 1 ATP/PERTEMUAN!

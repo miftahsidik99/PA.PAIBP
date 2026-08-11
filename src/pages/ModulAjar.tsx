@@ -15,7 +15,8 @@ export default function ModulAjar() {
     user, profile, calendarData, geminiApiKey, 
     schedules: storeSchedules, savedProtas: storeProtas, 
     generatedModulAtps: storeGeneratedAtps = {}, markAtpAsGenerated,
-    atpBatches, addAtpBatch, addModulAjarHistory
+    atpBatches, addAtpBatch, addModulAjarHistory,
+    students: storeStudents
   } = useStore();
   const navigate = useNavigate();
 
@@ -148,6 +149,9 @@ export default function ModulAjar() {
     const pertemuan = selectedAtpIndices.length;
     setIsGeneratingModul(true);
     
+    const gradeStudents = storeStudents?.[selectedGrade] || [];
+    const studentCount = gradeStudents.filter(s => s.nama && s.nama.trim() !== '').length;
+
     try {
       const data = await generateModulAjarClient(
         selectedAtpStrings,
@@ -156,8 +160,19 @@ export default function ModulAjar() {
         pertemuan,
         profile,
         selectedKarakteristik,
-        geminiApiKey
+        geminiApiKey,
+        studentCount
       );
+
+      if (!data.identitas) {
+        data.identitas = {};
+      }
+
+      if (studentCount > 0) {
+        data.identitas.target = `${studentCount} Peserta Didik Kelas ${selectedGrade} ${profile?.namaSekolah || ''} (${selectedKarakteristik})`;
+      } else {
+        data.identitas.target = `[DIISI OLEH GURU] Peserta Didik Kelas ${selectedGrade} ${profile?.namaSekolah || ''} (${selectedKarakteristik})`;
+      }
       
       const createHeading = (text: string, level: number = 1) => {
         return new Paragraph({
