@@ -29,6 +29,7 @@ export default function Presensi() {
   const [isExporting, setIsExporting] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+  const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
 
   useEffect(() => {
     if (showToast) {
@@ -305,15 +306,32 @@ export default function Presensi() {
         ]
       }));
 
+      const pageWidth = paperSize === 'F4' ? 18720 : 16838;
+      const pageHeight = paperSize === 'F4' ? 12240 : 11906;
+
       const doc = new Document({
         sections: [{
-          properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
+          properties: {
+            page: {
+              size: {
+                width: pageWidth,
+                height: pageHeight,
+                orientation: PageOrientation.LANDSCAPE
+              },
+              margin: {
+                top: 1000,
+                bottom: 1000,
+                left: 1000,
+                right: 1000
+              }
+            }
+          },
           children: docChildren
         }]
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Presensi_Semester_${selectedSemester}_Kelas_${selectedGrade}.docx`);
+      saveAs(blob, `Presensi_Semester_${selectedSemester}_Kelas_${selectedGrade}_${paperSize}.docx`);
     } catch (error) {
       console.error(error);
       alert("Gagal mengunduh dokumen.");
@@ -343,9 +361,26 @@ export default function Presensi() {
         right: { style: BorderStyle.SINGLE, size: 1, color: "E2E8F0" },
       };
 
+      const pageWidth = paperSize === 'F4' ? 18720 : 16838;
+      const pageHeight = paperSize === 'F4' ? 12240 : 11906;
+
       const doc = new Document({
         sections: [{
-          properties: { page: { size: { orientation: PageOrientation.LANDSCAPE } } },
+          properties: {
+            page: {
+              size: {
+                width: pageWidth,
+                height: pageHeight,
+                orientation: PageOrientation.LANDSCAPE
+              },
+              margin: {
+                top: 1000,
+                bottom: 1000,
+                left: 1000,
+                right: 1000
+              }
+            }
+          },
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -457,7 +492,7 @@ export default function Presensi() {
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Presensi_${format(monthName === "undefined" ? monthDate : monthDate, 'MMMM_yyyy', { locale: id })}_Kelas_${selectedGrade}.docx`);
+      saveAs(blob, `Presensi_${format(monthName === "undefined" ? monthDate : monthDate, 'MMMM_yyyy', { locale: id })}_Kelas_${selectedGrade}_${paperSize}.docx`);
     } catch (error) {
       console.error(error);
       alert("Gagal mengunduh dokumen.");
@@ -469,12 +504,29 @@ export default function Presensi() {
   return (
     <Layout>
       <div className="p-8">
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Presensi Kehadiran Siswa</h1>
             <p className="text-slate-500 text-sm">Kelola daftar hadir harian berdasarkan hari efektif belajar.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPaperSize('A4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'A4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('F4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'F4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                F4 (Folio)
+              </button>
+            </div>
+
              <button 
               onClick={handleSave}
               className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold border transition-all text-sm shadow-sm ${
@@ -492,7 +544,7 @@ export default function Presensi() {
               className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl font-bold border border-blue-100 hover:bg-blue-100 transition-colors text-sm disabled:opacity-50"
             >
               {isExporting ? <RefreshCw size={18} className="animate-spin" /> : <FileDown size={18} />}
-              Unduh Rekap Bulanan
+              Unduh Rekap Bulanan ({paperSize})
             </button>
              <button 
               onClick={handleExportWord}
@@ -500,7 +552,7 @@ export default function Presensi() {
               className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-2xl font-bold border border-emerald-100 hover:bg-emerald-100 transition-colors text-sm disabled:opacity-50"
             >
               {isExporting ? <RefreshCw size={18} className="animate-spin" /> : <FileDown size={18} />}
-              Unduh Rekap Semester
+              Unduh Rekap Semester ({paperSize})
             </button>
              <button 
               onClick={handleClearAttendance}

@@ -204,6 +204,8 @@ interface AppState {
   setJurnalEntries: (entries: Record<number, JurnalEntry[]>) => void;
 
   importData: (jsonData: string) => void;
+  syncUserDataToCloud: () => void;
+  loadUserFromCloud: (username: string) => Promise<boolean>;
   geminiApiKey: string | null;
   setGeminiApiKey: (key: string) => void;
 
@@ -596,12 +598,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], profile }
           }
         });
-        
-        import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-          updateDoc(doc(db, 'global_users', state.currentUser!), {
-            profile
-          }).catch(e => console.error(e));
-        });
+        state.syncUserDataToCloud();
       },
 
       setCalendarData: (calendarData) => {
@@ -614,6 +611,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], calendarData }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setSchedules: (schedules) => {
@@ -626,8 +624,8 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], schedules }
           }
         });
+        state.syncUserDataToCloud();
       },
-
 
       markAtpAsGenerated: (grade, atps) => {
         const state = get();
@@ -642,6 +640,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], generatedModulAtps: newGeneratedModulAtps }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       addAtpBatch: (grade, batch) => {
@@ -656,6 +655,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], atpBatches: newBatches }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setAtpBatches: (atpBatches) => {
@@ -668,6 +668,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], atpBatches }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       addKktp: (kktp) => {
@@ -681,6 +682,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], savedKktps: newKktps }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setSavedKktps: (savedKktps) => {
@@ -693,6 +695,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], savedKktps }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setSavedProtas: (savedProtas) => {
@@ -705,6 +708,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], savedProtas }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       addModulAjarHistory: (item) => {
@@ -718,6 +722,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], modulAjarHistories: newHistories }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       clearModulAjarHistories: () => {
@@ -730,6 +735,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], modulAjarHistories: [] }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       deleteModulAjarHistory: (id) => {
@@ -743,6 +749,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], modulAjarHistories: newHistories }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setStudents: (students) => {
@@ -755,6 +762,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], students }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setRombelConfig: (grade, config) => {
@@ -768,6 +776,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], rombelConfig: newConfig }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setJurnalState: (jurnalState) => {
@@ -780,6 +789,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], jurnalState }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setJurnalEntries: (jurnalEntries) => {
@@ -792,6 +802,7 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], jurnalEntries }
           }
         });
+        state.syncUserDataToCloud();
       },
 
       setAttendance: (attendance) => {
@@ -804,6 +815,85 @@ export const useStore = create<AppState>()(
             [state.currentUser]: { ...state.usersData[state.currentUser], attendance }
           }
         });
+        state.syncUserDataToCloud();
+      },
+
+      syncUserDataToCloud: () => {
+        const state = get();
+        const username = state.currentUser;
+        if (!username) return;
+        const currentData = state.usersData[username];
+        if (!currentData) return;
+
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'global_users', username), {
+            username,
+            password: currentData.password || '',
+            label: currentData.label || 'Demo',
+            signupTime: currentData.signupTime || Date.now(),
+            profile: currentData.profile || null,
+            calendarData: currentData.calendarData || null,
+            schedules: currentData.schedules || {},
+            savedProtas: currentData.savedProtas || {},
+            students: currentData.students || {},
+            attendance: currentData.attendance || [],
+            atpBatches: currentData.atpBatches || {},
+            savedKktps: currentData.savedKktps || [],
+            modulAjarHistories: currentData.modulAjarHistories || [],
+            rombelConfig: currentData.rombelConfig || {},
+            jurnalState: currentData.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+            jurnalEntries: currentData.jurnalEntries || {},
+            generatedModulAtps: currentData.generatedModulAtps || {},
+            activeSessionId: currentData.activeSessionId || null
+          }, { merge: true }).catch(err => {
+            console.warn("Firestore syncUserDataToCloud warning:", err);
+          });
+        }).catch(err => console.warn(err));
+      },
+
+      loadUserFromCloud: async (username: string) => {
+        const normalized = username.trim().toLowerCase();
+        try {
+          const { db, doc, getDoc } = await import('../lib/firebase');
+          const docSnap = await getDoc(doc(db, 'global_users', normalized));
+          if (docSnap.exists()) {
+            const cloudData = docSnap.data();
+            const state = get();
+            const existingLocal = state.usersData[normalized] || initialUserData;
+            
+            const mergedUser: UserData = {
+              ...existingLocal,
+              password: cloudData.password || existingLocal.password,
+              label: cloudData.label || existingLocal.label || 'Demo',
+              signupTime: cloudData.signupTime || existingLocal.signupTime || Date.now(),
+              profile: cloudData.profile || existingLocal.profile,
+              calendarData: cloudData.calendarData || existingLocal.calendarData,
+              schedules: cloudData.schedules || existingLocal.schedules,
+              savedProtas: cloudData.savedProtas || existingLocal.savedProtas,
+              students: cloudData.students || existingLocal.students || {},
+              attendance: cloudData.attendance || existingLocal.attendance || [],
+              atpBatches: cloudData.atpBatches || existingLocal.atpBatches || {},
+              savedKktps: cloudData.savedKktps || existingLocal.savedKktps || [],
+              modulAjarHistories: cloudData.modulAjarHistories || existingLocal.modulAjarHistories || [],
+              rombelConfig: cloudData.rombelConfig || existingLocal.rombelConfig || {},
+              jurnalState: cloudData.jurnalState || existingLocal.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+              jurnalEntries: cloudData.jurnalEntries || existingLocal.jurnalEntries || {},
+              generatedModulAtps: cloudData.generatedModulAtps || existingLocal.generatedModulAtps || {},
+              activeSessionId: cloudData.activeSessionId || existingLocal.activeSessionId
+            };
+
+            set({
+              usersData: {
+                ...state.usersData,
+                [normalized]: mergedUser
+              }
+            });
+            return true;
+          }
+        } catch (e) {
+          console.warn("Gagal memuat data cloud untuk user", normalized, e);
+        }
+        return false;
       },
 
       importData: (jsonData) => {

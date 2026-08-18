@@ -40,6 +40,7 @@ export default function Jurnal() {
   const [alpa, setAlpa] = useState(0);
   const [metode, setMetode] = useState('');
   const [catatan, setCatatan] = useState('');
+  const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
 
   const [availableDates, setAvailableDates] = useState<{date: string, label: string}[]>([]);
   const [availableAtps, setAvailableAtps] = useState<string[]>([]);
@@ -460,16 +461,20 @@ export default function Jurnal() {
 
       const headerShading = { fill: "F3F4F6", color: "auto" };
 
-      const createHeaderCell = (text: string) => new TableCell({
-        children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 20 })], alignment: AlignmentType.CENTER })],
+      const colWidths = [4, 13, 6, 8, 11, 25, 9, 9, 9, 6];
+
+      const createHeaderCell = (text: string, widthPct: number) => new TableCell({
+        width: { size: widthPct, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 19 })], alignment: AlignmentType.CENTER })],
         shading: headerShading,
         borders: cellBorders,
         verticalAlign: VerticalAlign.CENTER,
-        margins: { top: 100, bottom: 100, left: 100, right: 100 }
+        margins: { top: 120, bottom: 120, left: 100, right: 100 }
       });
 
-      const createCell = (text: string, align: any = AlignmentType.LEFT) => new TableCell({
-        children: [new Paragraph({ children: [new TextRun({ text, size: 20 })], alignment: align })],
+      const createCell = (text: string, widthPct: number, align: any = AlignmentType.LEFT) => new TableCell({
+        width: { size: widthPct, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ children: [new TextRun({ text: text || '-', size: 19 })], alignment: align })],
         borders: cellBorders,
         verticalAlign: VerticalAlign.CENTER,
         margins: { top: 100, bottom: 100, left: 100, right: 100 }
@@ -479,65 +484,90 @@ export default function Jurnal() {
         new TableRow({
           tableHeader: true,
           children: [
-            createHeaderCell("No"),
-            createHeaderCell("Hari / Tanggal"),
-            createHeaderCell("Jam Pelajaran"),
-            createHeaderCell("Kelas / Rombel"),
-            createHeaderCell("Mata Pelajaran"),
-            createHeaderCell("Alur Tujuan Pembelajaran"),
-            createHeaderCell("Kehadiran Siswa (S, I, A)"),
-            createHeaderCell("Metode Pembelajaran"),
-            createHeaderCell("Catatan / Refleksi"),
-            createHeaderCell("Tanda Tangan Guru"),
+            createHeaderCell("No", colWidths[0]),
+            createHeaderCell("Hari / Tanggal", colWidths[1]),
+            createHeaderCell("Jam", colWidths[2]),
+            createHeaderCell("Kelas/Rombel", colWidths[3]),
+            createHeaderCell("Mata Pelajaran", colWidths[4]),
+            createHeaderCell("Alur Tujuan Pembelajaran", colWidths[5]),
+            createHeaderCell("Kehadiran (H/S/I/A)", colWidths[6]),
+            createHeaderCell("Metode Pembelajaran", colWidths[7]),
+            createHeaderCell("Catatan / Refleksi", colWidths[8]),
+            createHeaderCell("Paraf", colWidths[9]),
           ]
         }),
         ...currentGradeEntries.map((entry, idx) => {
-          const d = parseISO(entry.tanggal);
-          const tanggalStr = format(d, "EEEE, d MMMM yyyy", { locale: localeId });
-          const kehadiranStr = `H:${entry.kehadiran.hadir || 0} S:${entry.kehadiran.sakit} I:${entry.kehadiran.izin} A:${entry.kehadiran.alpa}`;
+          let tanggalStr = entry.tanggal || '-';
+          try {
+            const d = parseISO(entry.tanggal);
+            tanggalStr = format(d, "EEEE, d MMM yyyy", { locale: localeId });
+          } catch {
+            tanggalStr = entry.tanggal;
+          }
+          const kehadiranStr = `H:${entry.kehadiran?.hadir || 0} S:${entry.kehadiran?.sakit || 0} I:${entry.kehadiran?.izin || 0} A:${entry.kehadiran?.alpa || 0}`;
           
           return new TableRow({
             children: [
-              createCell((idx + 1).toString(), AlignmentType.CENTER),
-              createCell(tanggalStr),
-              createCell(entry.jamPelajaran, AlignmentType.CENTER),
-              createCell(`Kelas ${entry.kelas} / ${entry.rombel}`, AlignmentType.CENTER),
-              createCell(entry.mataPelajaran),
-              createCell(entry.atp),
-              createCell(kehadiranStr, AlignmentType.CENTER),
-              createCell(entry.metode),
-              createCell(entry.catatan),
-              createCell(""), // Empty for signature
+              createCell((idx + 1).toString(), colWidths[0], AlignmentType.CENTER),
+              createCell(tanggalStr, colWidths[1]),
+              createCell(entry.jamPelajaran || '-', colWidths[2], AlignmentType.CENTER),
+              createCell(`Kelas ${entry.kelas || selectedGrade} / ${entry.rombel || 'A'}`, colWidths[3], AlignmentType.CENTER),
+              createCell(entry.mataPelajaran || 'PAI dan Budi Pekerti', colWidths[4]),
+              createCell(entry.atp || '-', colWidths[5]),
+              createCell(kehadiranStr, colWidths[6], AlignmentType.CENTER),
+              createCell(entry.metode || '-', colWidths[7]),
+              createCell(entry.catatan || '-', colWidths[8]),
+              createCell("", colWidths[9]), // Paraf
             ]
           });
         })
       ];
 
+      const pageWidth = paperSize === 'F4' ? 18720 : 16838;
+      const pageHeight = paperSize === 'F4' ? 12240 : 11906;
+
       const doc = new Document({
         sections: [{
           properties: {
             page: {
-              size: { orientation: PageOrientation.LANDSCAPE }
+              size: {
+                width: pageWidth,
+                height: pageHeight,
+                orientation: PageOrientation.LANDSCAPE
+              },
+              margin: {
+                top: 1000,
+                bottom: 1000,
+                left: 1000,
+                right: 1000
+              }
             }
           },
           children: [
             new Paragraph({
-              children: [new TextRun({ text: "JURNAL MENGAJAR GURU", bold: true, size: 28 })],
+              children: [new TextRun({ text: "JURNAL MENGAJAR GURU", bold: true, size: 26 })],
               alignment: AlignmentType.CENTER,
-              spacing: { after: 200 }
+              spacing: { after: 100 }
             }),
             new Paragraph({
               children: [
-                new TextRun({ text: `Bulan: ${selectedMonth} ${selectedYear}`, size: 24 }),
+                new TextRun({ text: `${profile?.namaSekolah || 'SD NEGERI'} — KELAS ${selectedGrade}`, bold: true, size: 22 }),
               ],
               alignment: AlignmentType.CENTER,
-              spacing: { after: 400 }
+              spacing: { after: 100 }
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: `Bulan: ${selectedMonth} ${selectedYear}`, size: 20 }),
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 300 }
             }),
             new Table({
               width: { size: 100, type: WidthType.PERCENTAGE },
               rows: tableRows
             }),
-            new Paragraph({ spacing: { before: 800, after: 200 }, children: [] }),
+            new Paragraph({ spacing: { before: 500, after: 150 }, children: [] }),
             new Table({
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: "auto" },
@@ -553,49 +583,49 @@ export default function Jurnal() {
                   children: [
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: "Mengetahui,", bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: "Pengawas PAI,", bold: true })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: "Mengetahui,", bold: true, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: "Pengawas PAI,", bold: true, size: 20 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: "Mengetahui,", bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: `Kepala Sekolah ${profile?.namaSekolah || 'SDN'}`, bold: true })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: "Mengetahui,", bold: true, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: `Kepala Sekolah ${profile?.namaSekolah || ''}`, bold: true, size: 20 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: "Mengetahui,", bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: "Guru PAIBP,", bold: true })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: `${profile?.namaSekolah?.split(' ')[1] || 'Tempat'}, ${format(new Date(), "d MMMM yyyy", { locale: localeId })}`, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: "Guru PAIBP,", bold: true, size: 20 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                   ]
                 }),
                 new TableRow({
                   children: [
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "\n\n\n\n" })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "\n\n\n\n" })] })] }),
-                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "\n\n\n\n" })] })] })
+                    new TableCell({ children: [new Paragraph({ spacing: { before: 700 } })] }),
+                    new TableCell({ children: [new Paragraph({ spacing: { before: 700 } })] }),
+                    new TableCell({ children: [new Paragraph({ spacing: { before: 700 } })] })
                   ]
                 }),
                 new TableRow({
                   children: [
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: pengawasNama || '( . . . . . . . . . . . . . )', bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: `NIP. ${pengawasNip || '...................'}` })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: pengawasNama || '( ........................................ )', bold: true, underline: {}, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: `NIP. ${pengawasNip || '........................................'}`, size: 19 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: profile?.namaKepalaSekolah || '( . . . . . . . . . . . . . )', bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nipKepalaSekolah || '...................'}` })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: profile?.namaKepalaSekolah || '( ........................................ )', bold: true, underline: {}, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nipKepalaSekolah || '........................................'}`, size: 19 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                     new TableCell({
                       children: [
-                        new Paragraph({ children: [new TextRun({ text: profile?.namaGuru || '( . . . . . . . . . . . . . )', bold: true })], alignment: AlignmentType.CENTER }),
-                        new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nip || '...................'}` })], alignment: AlignmentType.CENTER })
+                        new Paragraph({ children: [new TextRun({ text: profile?.namaGuru || '( ........................................ )', bold: true, underline: {}, size: 20 })], alignment: AlignmentType.CENTER }),
+                        new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nip || '........................................'}`, size: 19 })], alignment: AlignmentType.CENTER })
                       ]
                     }),
                   ]
@@ -607,7 +637,7 @@ export default function Jurnal() {
       });
 
       const blob = await Packer.toBlob(doc);
-      saveAs(blob, `Jurnal_Mengajar_Kelas_${selectedGrade}_${selectedMonth}_${selectedYear}.docx`);
+      saveAs(blob, `Jurnal_Mengajar_Kelas_${selectedGrade}_${selectedMonth}_${selectedYear}_${paperSize}.docx`);
     } catch (error) {
       console.error(error);
       alert('Terjadi kesalahan saat membuat dokumen Jurnal.');
@@ -634,6 +664,24 @@ export default function Jurnal() {
           </div>
           
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Paper Size Selector */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPaperSize('A4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'A4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('F4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'F4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                F4 (Folio)
+              </button>
+            </div>
+
             <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
@@ -654,7 +702,7 @@ export default function Jurnal() {
               className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
             >
               <Download size={18} />
-              Unduh Word
+              Unduh Word ({paperSize})
             </button>
           </div>
         </div>

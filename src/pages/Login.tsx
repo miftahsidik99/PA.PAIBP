@@ -7,9 +7,10 @@ import { getYouTubeThumbnailUrl } from '../lib/youtube';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { user, profile, verifyAndLogin, flashcards, setFlashcards } = useStore();
+  const { user, profile, verifyAndLogin, flashcards, setFlashcards, loadUserFromCloud } = useStore();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -62,7 +63,7 @@ export default function Login() {
     return () => window.removeEventListener('click', handleTap);
   }, [navigate]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username.trim() || !password.trim()) {
       alert("Masukkan username dan password.");
@@ -71,11 +72,29 @@ export default function Login() {
     const cleanUsername = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    const result = verifyAndLogin(cleanUsername, cleanPassword);
-    if (result === 'not_found') {
-      alert("Akun tidak ditemukan. Silakan Daftar Akun baru.");
-    } else if (result === 'invalid_password') {
-      alert("Kata sandi salah. Silakan coba lagi atau hubungi Admin.");
+    setIsLoading(true);
+    try {
+      // First check local state
+      let result = verifyAndLogin(cleanUsername, cleanPassword);
+      
+      // If not found locally, try fetching from Firestore cloud
+      if (result === 'not_found') {
+        const loaded = await loadUserFromCloud(cleanUsername);
+        if (loaded) {
+          result = verifyAndLogin(cleanUsername, cleanPassword);
+        }
+      }
+
+      if (result === 'not_found') {
+        alert("Akun tidak ditemukan. Silakan Daftar Akun baru.");
+      } else if (result === 'invalid_password') {
+        alert("Kata sandi salah. Silakan coba lagi atau hubungi Admin.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Terjadi kesalahan saat masuk. Silakan coba lagi.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -129,10 +148,11 @@ export default function Login() {
               </div>
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl py-3 px-4 font-bold text-sm transition-all shadow-md shadow-emerald-600/20 hover:shadow-lg"
+                disabled={isLoading}
+                className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl py-3 px-4 font-bold text-sm transition-all shadow-md shadow-emerald-600/20 hover:shadow-lg disabled:opacity-60"
               >
                 <LogIn className="w-4 h-4" />
-                Masuk ke Aplikasi
+                {isLoading ? "Memverifikasi..." : "Masuk ke Aplikasi"}
               </button>
             </form>
             

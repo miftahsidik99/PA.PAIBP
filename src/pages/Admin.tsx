@@ -44,6 +44,14 @@ export default function Admin() {
     setFlashcards
   } = useStore();
 
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState<boolean>(() => {
+    return sessionStorage.getItem('paibp_admin_auth') === 'true';
+  });
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [cloudUsers, setCloudUsers] = useState<Record<string, UserData>>({});
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [resettingUser, setResettingUser] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState('');
@@ -59,6 +67,58 @@ export default function Admin() {
   const [editFlashcardTitle, setEditFlashcardTitle] = useState('');
   const [editFlashcardUrl, setEditFlashcardUrl] = useState('');
   const [flashcardToDelete, setFlashcardToDelete] = useState<{ id: string; title: string } | null>(null);
+
+  // Listen to all users from Firestore when admin is unlocked
+  useEffect(() => {
+    if (!isAdminUnlocked) return;
+
+    let unsubscribeUsers: (() => void) | undefined;
+    setIsLoadingUsers(true);
+
+    import('../lib/firebase').then(({ db, collection, onSnapshot }) => {
+      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
+        const loaded: Record<string, UserData> = {};
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          loaded[doc.id] = {
+            profile: data.profile || null,
+            calendarData: data.calendarData || null,
+            schedules: data.schedules || {},
+            savedProtas: data.savedProtas || {},
+            generatedModulAtps: data.generatedModulAtps || {},
+            atpBatches: data.atpBatches || {},
+            savedKktps: data.savedKktps || [],
+            students: data.students || {},
+            attendance: data.attendance || [],
+            modulAjarHistories: data.modulAjarHistories || [],
+            rombelConfig: data.rombelConfig || {},
+            jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+            jurnalEntries: data.jurnalEntries || {},
+            password: data.password || '',
+            label: data.label || 'Demo',
+            signupTime: data.signupTime || Date.now(),
+            activeSessionId: data.activeSessionId || undefined
+          };
+        });
+        setCloudUsers(loaded);
+        setIsLoadingUsers(false);
+        // Also sync to store usersData for actions
+        useStore.setState(prev => ({
+          usersData: { ...prev.usersData, ...loaded }
+        }));
+      }, (error) => {
+        console.warn("Admin users listener warning:", error);
+        setIsLoadingUsers(false);
+      });
+    }).catch(err => {
+      console.error(err);
+      setIsLoadingUsers(false);
+    });
+
+    return () => {
+      if (unsubscribeUsers) unsubscribeUsers();
+    };
+  }, [isAdminUnlocked]);
 
   // Sync flashcards real-time from Firestore
   useEffect(() => {
@@ -80,6 +140,23 @@ export default function Admin() {
       if (unsubscribe) unsubscribe();
     };
   }, [setFlashcards]);
+
+  const handleVerifyAdminPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const validPins = ['Admin#PAIBP2025', '123456', '998877', 'paibpsmart'];
+    if (validPins.includes(pinInput.trim())) {
+      sessionStorage.setItem('paibp_admin_auth', 'true');
+      setIsAdminUnlocked(true);
+      setPinError('');
+    } else {
+      setPinError('PIN / Kunci Admin tidak valid.');
+    }
+  };
+
+  const handleAdminLock = () => {
+    sessionStorage.removeItem('paibp_admin_auth');
+    setIsAdminUnlocked(false);
+  };
 
   const handleAddFlashcardSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +269,58 @@ export default function Admin() {
     u.profile?.namaSekolah?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (!isAdminUnlocked) {
+    return (
+      <div className="min-h-screen bg-slate-900 font-sans text-slate-100 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="w-full max-w-md bg-slate-800 border border-slate-700 rounded-3xl p-8 shadow-2xl shadow-black/50 text-center"
+        >
+          <div className="mx-auto w-16 h-16 bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+            <ShieldAlert size={32} />
+          </div>
+          <h1 className="text-2xl font-bold text-white tracking-tight mb-2">Autentikasi Administrator</h1>
+          <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+            Halaman ini khusus pengelola sistem. Masukkan Kunci Keamanan / PIN Master Admin untuk mengelola data pengguna.
+          </p>
+
+          <form onSubmit={handleVerifyAdminPin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                placeholder="Masukkan PIN / Master Key Admin"
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                className="w-full px-4 py-3.5 bg-slate-900/80 border border-slate-700 rounded-2xl text-center text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all font-mono tracking-widest text-base"
+                autoFocus
+                required
+              />
+            </div>
+            {pinError && (
+              <p className="text-xs text-rose-400 font-medium">{pinError}</p>
+            )}
+            <button
+              type="submit"
+              className="w-full py-3.5 px-4 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-rose-900/30 active:scale-[0.99]"
+            >
+              Buka Panel Admin
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-slate-700/60 flex items-center justify-center">
+            <button
+              onClick={() => navigate('/')}
+              className="text-xs text-slate-400 hover:text-slate-200 flex items-center gap-1.5 transition-colors"
+            >
+              <ArrowLeft size={14} /> Kembali ke Aplikasi
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800 p-6 md:p-12">
       <div className="max-w-7xl mx-auto">
@@ -213,9 +342,18 @@ export default function Admin() {
               <p className="text-slate-500 text-sm mt-0.5">Kelola pengguna, sandi, dan status akses lisensi aplikasi.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-4 py-2 rounded-2xl border border-emerald-100 text-sm font-semibold">
-            <Award size={18} />
-            Bypass Mode Aktif (CTRL+ALT+I+P)
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleAdminLock}
+              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3.5 py-2 rounded-2xl border border-rose-200 text-xs font-semibold transition-all shadow-sm"
+              title="Kunci Panel Admin"
+            >
+              <Key size={15} /> Kunci Panel
+            </button>
+            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-4 py-2 rounded-2xl border border-emerald-100 text-sm font-semibold">
+              <Award size={18} />
+              Admin Mode Aktif
+            </div>
           </div>
         </div>
 

@@ -33,84 +33,68 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const currentUser = useStore(state => state.currentUser);
+  const currentUserSessionId = useStore(state => state.currentUserSessionId);
+
   React.useEffect(() => {
-    // Listen to Firebase and sync to useStore
-    let unsubscribeUsers = () => {};
+    let unsubscribeUser = () => {};
     let unsubscribeRequests = () => {};
     let lastWarningTime = 0;
 
-    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
-      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
-        const usersData = useStore.getState().usersData;
-        const updatedUsersData = { ...usersData };
-        const snapshotIds = new Set();
-        
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const normalized = doc.id;
-          snapshotIds.add(normalized);
-          if (updatedUsersData[normalized]) {
-            updatedUsersData[normalized] = {
-              ...updatedUsersData[normalized],
-              ...data
-            };
-          } else {
-            // New user from another device
-            updatedUsersData[normalized] = {
-              profile: data.profile || null,
-              calendarData: null,
-              schedules: {},
-              savedProtas: {},
-              generatedModulAtps: {},
-              atpBatches: {},
-              savedKktps: [],
-              students: {},
-              attendance: [],
-              modulAjarHistories: [],
-              rombelConfig: {},
-              jurnalState: {
-                bulan: 'JUNI 2026',
-                pengawasNama: '',
-                pengawasNip: '',
-                items: {}
-              },
-              jurnalEntries: {},
-              password: data.password,
-              label: data.label || 'Demo',
-              signupTime: data.signupTime || Date.now(),
-              activeSessionId: data.activeSessionId || undefined
-            };
-          }
-        });
-        
-        // Remove local users that were deleted from Firestore
-        Object.keys(updatedUsersData).forEach(localUser => {
-          if (!snapshotIds.has(localUser)) {
-             delete updatedUsersData[localUser];
-          }
-        });
-        
-        useStore.setState({ usersData: updatedUsersData });
-        
-        const currentState = useStore.getState();
-        if (currentState.currentUser && currentState.currentUserSessionId) {
-           const currentUserData = updatedUsersData[currentState.currentUser];
-           const currentDbSession = currentUserData?.activeSessionId;
-           if (currentDbSession !== currentState.currentUserSessionId) {
-             alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
-             currentState.logout();
-           } else if (currentUserData?.loginAttemptWarning && currentUserData.loginAttemptWarning > lastWarningTime) {
-             lastWarningTime = currentUserData.loginAttemptWarning;
-             // Ensure we only warn if the warning was triggered recently (e.g. last 10 seconds)
-             if (Date.now() - currentUserData.loginAttemptWarning < 10000) {
-               alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
-             }
-           }
-        }
-      }, (error) => {
-        console.warn("Firestore global_users listener warning:", error);
-      });
+    if (currentUser) {
+      import('./lib/firebase').then(({ db, doc, onSnapshot }) => {
+        unsubscribeUser = onSnapshot(doc(db, 'global_users', currentUser), (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.data();
+          const currentState = useStore.getState();
+          const usersData = currentState.usersData;
+          const currentLocal = usersData[currentUser] || {
+            profile: null,
+            calendarData: null,
+            schedules: {},
+            savedProtas: {},
+            generatedModulAtps: {},
+            atpBatches: {},
+            savedKktps: [],
+            students: {},
+            attendance: [],
+            modulAjarHistories: [],
+            rombelConfig: {},
+            jurnalState: { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+            jurnalEntries: {},
+            label: 'Demo',
+            signupTime: Date.now()
+          };
 
+          const updatedUser = {
+            ...currentLocal,
+            ...data
+          };
+
+          useStore.setState({
+            usersData: {
+              ...usersData,
+              [currentUser]: updatedUser
+            }
+          });
+
+          // Session and login attempt warning check
+          if (currentUserSessionId && data.activeSessionId && data.activeSessionId !== currentUserSessionId) {
+            alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
+            currentState.logout();
+          } else if (data.loginAttemptWarning && data.loginAttemptWarning > lastWarningTime) {
+            lastWarningTime = data.loginAttemptWarning;
+            if (Date.now() - data.loginAttemptWarning < 10000) {
+              alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
+            }
+          }
+        }, (error) => {
+          console.warn("Firestore user listener warning:", error);
+        });
+      }).catch(e => console.error(e));
+    }
+
+    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
       unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
         const requests: any[] = [];
         snapshot.forEach((doc) => {
@@ -122,6 +106,13 @@ export default function App() {
       });
     }).catch(e => console.error(e));
 
+    return () => {
+      unsubscribeUser();
+      unsubscribeRequests();
+    };
+  }, [currentUser, currentUserSessionId]);
+
+  React.useEffect(() => {
     const pressedKeys = new Set<string>();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -154,8 +145,6 @@ export default function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
-      unsubscribeUsers();
-      unsubscribeRequests();
     };
   }, []);
 

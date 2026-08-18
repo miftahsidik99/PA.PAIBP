@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useStore } from '../store/useStore';
 import { Download, Save, BrainCircuit } from 'lucide-react';
 import { cpData } from '../data/cp';
-import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, PageOrientation } from 'docx';
+import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, PageOrientation, BorderStyle, VerticalAlign } from 'docx';
 import { saveAs } from 'file-saver';
 import { eachDayOfInterval, format, getDay, isSameMonth } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -19,6 +19,7 @@ export default function Prota() {
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [protaData, setProtaData] = useState<any[]>([]);
   const [savedProtas, setSavedProtas] = useState<Record<number, any[]>>({});
+  const [paperSize, setPaperSize] = useState<'A4' | 'F4'>('A4');
 
   useEffect(() => {
     const fetchSchedulesAndProta = async () => {
@@ -137,16 +138,37 @@ export default function Prota() {
   };
 
   const generateDoc = async () => {
+    const cellBorders = {
+      top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+      right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+    };
+
+    const headerShading = { fill: "F1F5F9", color: "auto" };
+
+    const colWidths = [4, 12, 22, 22, 22, 6, 12];
+
+    const createHeaderCell = (text: string, widthPct: number) => new TableCell({
+      width: { size: widthPct, type: WidthType.PERCENTAGE },
+      children: [new Paragraph({ children: [new TextRun({ text, bold: true, size: 19 })], alignment: AlignmentType.CENTER })],
+      shading: headerShading,
+      borders: cellBorders,
+      verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 120, bottom: 120, left: 100, right: 100 }
+    });
+
     const tableRows = [
       new TableRow({
+        tableHeader: true,
         children: [
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "No", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Elemen", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Capaian Pembelajaran (CP)", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Tujuan Pembelajaran (TP)", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Alur Tujuan Pembelajaran (ATP)", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Alokasi JP", bold: true })], alignment: AlignmentType.CENTER })] }),
-          new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "Rencana Tanggal", bold: true })], alignment: AlignmentType.CENTER })] }),
+          createHeaderCell("No", colWidths[0]),
+          createHeaderCell("Elemen", colWidths[1]),
+          createHeaderCell("Capaian Pembelajaran (CP)", colWidths[2]),
+          createHeaderCell("Tujuan Pembelajaran (TP)", colWidths[3]),
+          createHeaderCell("Alur Tujuan Pembelajaran (ATP)", colWidths[4]),
+          createHeaderCell("Alokasi JP", colWidths[5]),
+          createHeaderCell("Rencana Tanggal", colWidths[6]),
         ]
       })
     ];
@@ -172,36 +194,104 @@ export default function Prota() {
         const cells = [];
         
         if (atpIdx === 0) {
-          cells.push(new TableCell({ children: [new Paragraph({ text: (idx + 1).toString(), alignment: AlignmentType.CENTER })], rowSpan: atpCount }));
-          cells.push(new TableCell({ children: [new Paragraph({ text: item.elemen })], rowSpan: atpCount }));
-          cells.push(new TableCell({ children: [new Paragraph({ text: item.cp })], rowSpan: atpCount }));
-          cells.push(new TableCell({ children: Array.isArray(item.tp) ? item.tp.map((t: string) => new Paragraph({ text: "- " + t })) : [new Paragraph({ text: "- " + (item.tp || "") })], rowSpan: atpCount }));
+          cells.push(new TableCell({
+            width: { size: colWidths[0], type: WidthType.PERCENTAGE },
+            children: [new Paragraph({ text: (idx + 1).toString(), alignment: AlignmentType.CENTER })],
+            rowSpan: atpCount,
+            borders: cellBorders,
+            verticalAlign: VerticalAlign.CENTER,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+          }));
+          cells.push(new TableCell({
+            width: { size: colWidths[1], type: WidthType.PERCENTAGE },
+            children: [new Paragraph({ text: item.elemen || '-' })],
+            rowSpan: atpCount,
+            borders: cellBorders,
+            verticalAlign: VerticalAlign.CENTER,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+          }));
+          cells.push(new TableCell({
+            width: { size: colWidths[2], type: WidthType.PERCENTAGE },
+            children: [new Paragraph({ text: item.cp || '-' })],
+            rowSpan: atpCount,
+            borders: cellBorders,
+            verticalAlign: VerticalAlign.CENTER,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+          }));
+          cells.push(new TableCell({
+            width: { size: colWidths[3], type: WidthType.PERCENTAGE },
+            children: Array.isArray(item.tp) ? item.tp.map((t: string) => new Paragraph({ text: "• " + t })) : [new Paragraph({ text: "• " + (item.tp || "-") })],
+            rowSpan: atpCount,
+            borders: cellBorders,
+            verticalAlign: VerticalAlign.CENTER,
+            margins: { top: 100, bottom: 100, left: 100, right: 100 }
+          }));
         }
         
-        cells.push(new TableCell({ children: [new Paragraph({ text: atpText })] }));
-        cells.push(new TableCell({ children: [new Paragraph({ text: `${jpPerWeek} JP`, alignment: AlignmentType.CENTER })] }));
-        cells.push(new TableCell({ children: [new Paragraph({ text: dateString })] }));
+        cells.push(new TableCell({
+          width: { size: colWidths[4], type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ text: atpText })],
+          borders: cellBorders,
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 100, bottom: 100, left: 100, right: 100 }
+        }));
+        cells.push(new TableCell({
+          width: { size: colWidths[5], type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ text: `${jpPerWeek} JP`, alignment: AlignmentType.CENTER })],
+          borders: cellBorders,
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 100, bottom: 100, left: 100, right: 100 }
+        }));
+        cells.push(new TableCell({
+          width: { size: colWidths[6], type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ text: dateString })],
+          borders: cellBorders,
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 100, bottom: 100, left: 100, right: 100 }
+        }));
 
         tableRows.push(new TableRow({ children: cells }));
       }
     });
 
+    const pageWidth = paperSize === 'F4' ? 18720 : 16838;
+    const pageHeight = paperSize === 'F4' ? 12240 : 11906;
+
     const doc = new Document({
       sections: [{
         properties: {
-          page: { size: { orientation: PageOrientation.LANDSCAPE } }
+          page: {
+            size: {
+              width: pageWidth,
+              height: pageHeight,
+              orientation: PageOrientation.LANDSCAPE
+            },
+            margin: {
+              top: 1000,
+              bottom: 1000,
+              left: 1000,
+              right: 1000
+            }
+          }
         },
         children: [
           new Paragraph({
             children: [
-              new TextRun({ text: `Program Tahunan - Kelas ${selectedGrade}`, bold: true, size: 28 }),
+              new TextRun({ text: `PROGRAM TAHUNAN (PROTA)`, bold: true, size: 26 }),
             ],
             alignment: AlignmentType.CENTER,
             spacing: { after: 100 }
           }),
           new Paragraph({
             children: [
-              new TextRun({ text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2026/2027'}`, size: 24 }),
+              new TextRun({ text: `${profile?.namaSekolah || 'SD NEGERI'} — KELAS ${selectedGrade}`, bold: true, size: 22 }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 }
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({ text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2026/2027'}`, size: 20 }),
             ],
             alignment: AlignmentType.CENTER,
             spacing: { after: 300 }
@@ -215,7 +305,7 @@ export default function Prota() {
     });
 
     const blob = await Packer.toBlob(doc);
-    saveAs(blob, `Prota_Kelas_${selectedGrade}.docx`);
+    saveAs(blob, `Prota_Kelas_${selectedGrade}_${paperSize}.docx`);
   };
 
   if (loading) return <Layout><div className="p-8">Memuat data...</div></Layout>;
@@ -223,12 +313,29 @@ export default function Prota() {
   return (
     <Layout>
       <div className="p-8">
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 mb-2">Program Tahunan (Prota)</h1>
             <p className="text-slate-500 text-sm">Buat Prota otomatis dengan AI berdasarkan referensi CP dan TP.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setPaperSize('A4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'A4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                A4
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaperSize('F4')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${paperSize === 'F4' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                F4 (Folio)
+              </button>
+            </div>
+
             <button 
               onClick={handleGenerate}
               disabled={generating}
@@ -251,7 +358,7 @@ export default function Prota() {
               className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-2xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-900 transition-colors disabled:opacity-50 text-sm"
             >
               <Download size={18} />
-              Unduh Word (A4)
+              Unduh Word ({paperSize})
             </button>
           </div>
         </div>
