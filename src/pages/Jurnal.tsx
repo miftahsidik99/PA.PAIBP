@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Layout from '../components/Layout';
 import { useStore, JurnalEntry } from '../store/useStore';
-import { Save, Download, Plus, Trash2, Calendar, FileText, BookOpen, Edit, Check, X } from 'lucide-react';
+import { Save, Download, Plus, Trash2, Calendar, FileText, BookOpen, Edit, Check, X, RefreshCw } from 'lucide-react';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, BorderStyle, PageOrientation, VerticalAlign } from 'docx';
 import { saveAs } from 'file-saver';
 import { format, parseISO, eachDayOfInterval, getDay } from 'date-fns';
@@ -17,7 +17,18 @@ const MONTH_OPTIONS = [
 const YEAR_OPTIONS = [2025, 2026, 2027, 2028, 2029, 2030];
 
 export default function Jurnal() {
-  const { profile, jurnalState, setJurnalState, jurnalEntries, setJurnalEntries, attendance, schedules, calendarData, savedProtas } = useStore();
+  const { 
+    profile, 
+    jurnalState, 
+    setJurnalState, 
+    jurnalEntries, 
+    setJurnalEntries, 
+    attendance, 
+    schedules, 
+    calendarData, 
+    savedProtas,
+    syncUserDataToCloud 
+  } = useStore();
 
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [selectedMonth, setSelectedMonth] = useState<string>(jurnalState?.bulan ? jurnalState.bulan.split(' ')[0] : 'JUNI');
@@ -25,6 +36,7 @@ export default function Jurnal() {
   
   const [pengawasNama, setPengawasNama] = useState<string>(jurnalState?.pengawasNama || '');
   const [pengawasNip, setPengawasNip] = useState<string>(jurnalState?.pengawasNip || '');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form state
   const [tanggal, setTanggal] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -346,71 +358,31 @@ export default function Jurnal() {
   };
 
   const handleSaveData = () => {
-    // If the form on the left has been worked on (ATP has text)
-    if (atp.trim()) {
-      if (!tanggal) {
-        alert("Tanggal wajib diisi!");
-        return;
-      }
+    setIsSaving(true);
+    const currentEntries = jurnalEntries || {};
+    
+    // Explicitly commit current journal entries to local store and user state
+    setJurnalEntries({
+      ...currentEntries
+    });
 
-      const currentEntries = jurnalEntries || {};
-      const gradeEntries = currentEntries[selectedGrade] || [];
+    setJurnalState({
+      ...jurnalState,
+      bulan: `${selectedMonth} ${selectedYear}`,
+      pengawasNama,
+      pengawasNip,
+      items: jurnalState?.items || {}
+    });
 
-      if (editingId) {
-        // Save the edited changes
-        const updatedEntries = gradeEntries.map(entry => {
-          if (entry.id === editingId) {
-            return {
-              ...entry,
-              tanggal,
-              jamPelajaran,
-              kelas: selectedGrade,
-              rombel,
-              mataPelajaran,
-              atp,
-              kehadiran: { hadir, sakit, izin, alpa },
-              metode,
-              catatan
-            };
-          }
-          return entry;
-        });
-
-        setJurnalEntries({
-          ...currentEntries,
-          [selectedGrade]: updatedEntries
-        });
-
-        setEditingId(null);
-        setShowToast("Perubahan entri jurnal berhasil disimpan!");
-      } else {
-        // Save new entry from form
-        const newEntry: JurnalEntry = {
-          id: Date.now().toString(),
-          tanggal,
-          jamPelajaran,
-          kelas: selectedGrade,
-          rombel,
-          mataPelajaran,
-          atp,
-          kehadiran: { hadir, sakit, izin, alpa },
-          metode,
-          catatan
-        };
-
-        setJurnalEntries({
-          ...currentEntries,
-          [selectedGrade]: [...gradeEntries, newEntry]
-        });
-
-        setShowToast("Entri jurnal yang sedang dikerjakan berhasil disimpan!");
-      }
-
-      resetFormFields();
-    } else {
-      // If the form is empty, verify all current month data is in store
-      setShowToast("Semua data Jurnal berhasil disimpan ke penyimpanan lokal!");
+    // Trigger cloud synchronization if available
+    if (typeof syncUserDataToCloud === 'function') {
+      syncUserDataToCloud();
     }
+
+    setTimeout(() => {
+      setIsSaving(false);
+      setShowToast(`Data Jurnal Kelas ${selectedGrade} (${currentGradeEntries.length} entri) berhasil disimpan!`);
+    }, 350);
   };
 
   const handleClearData = () => {
@@ -980,11 +952,21 @@ export default function Jurnal() {
                 </button>
                 <button
                   onClick={handleSaveData}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
-                  title="Simpan Data Jurnal"
+                  disabled={isSaving}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all disabled:opacity-50"
+                  title="Simpan Data Jurnal pada Tabel"
                 >
-                  <Save size={14} />
-                  Simpan Data
+                  {isSaving ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={14} />
+                      Simpan Data
+                    </>
+                  )}
                 </button>
               </div>
             </div>

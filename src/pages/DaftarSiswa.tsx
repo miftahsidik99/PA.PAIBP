@@ -3,19 +3,19 @@ import Layout from '../components/Layout';
 import { useStore, Student } from '../store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  Users, Plus, Trash2, Save, Download, Upload, 
+  Users, Plus, Trash2, Save, Download, 
   FileSpreadsheet, Image as ImageIcon, X, FileText, 
   Check, AlertCircle, RefreshCw, Layers
 } from 'lucide-react';
 import { 
   Document, Packer, Paragraph, Table, TableCell, TableRow, 
   TextRun, WidthType, AlignmentType, BorderStyle, ShadingType,
-  PageOrientation, ImageRun
+  PageOrientation, ImageRun, VerticalAlign
 } from 'docx';
 import { saveAs } from 'file-saver';
 
 export default function DaftarSiswa() {
-  const { user, profile, students: storeStudents, setStudents, rombelConfig, setRombelConfig } = useStore();
+  const { profile, students: storeStudents, setStudents, rombelConfig, setRombelConfig } = useStore();
   const [selectedGrade, setSelectedGrade] = useState<number>(1);
   const [rows, setRows] = useState<Student[]>([]);
   const [jumlahRombel, setJumlahRombel] = useState<number>(1);
@@ -43,7 +43,7 @@ export default function DaftarSiswa() {
       setRombelConfig(selectedGrade, { jumlahRombel: 1, labels: defaultLabels });
     }
     setSelectedRombelFilter('all');
-  }, [selectedGrade, rombelConfig]);
+  }, [selectedGrade, rombelConfig, setRombelConfig]);
 
   const handleJumlahRombelChange = (count: number) => {
     const newCount = Math.max(1, Math.min(6, count));
@@ -67,19 +67,39 @@ export default function DaftarSiswa() {
     const loaded = storeStudents[selectedGrade] || [];
     const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
     if (loaded.length > 0) {
-      setRows(loaded);
+      // Normalize existing rows to ensure new fields exist
+      const normalized = loaded.map((s, idx) => ({
+        id: s.id || `row-${Date.now()}-${idx}`,
+        nama: s.nama || '',
+        nipd: s.nipd || '',
+        jk: s.jk || (s.jenisKelamin ? (s.jenisKelamin.startsWith('L') ? 'L' : 'P') : 'L'),
+        jenisKelamin: s.jenisKelamin || (s.jk === 'P' ? 'Perempuan' : 'Laki-laki'),
+        nisn: s.nisn || '',
+        tempatLahir: s.tempatLahir || '',
+        tanggalLahir: s.tanggalLahir || '',
+        nik: s.nik || '',
+        agama: s.agama || 'Islam',
+        alamat: s.alamat || '',
+        foto: s.foto || '',
+        kelas: s.kelas || defaultKelas
+      }));
+      setRows(normalized);
     } else {
       // Create initial 5 blank rows
       const initialRows: Student[] = Array.from({ length: 5 }, (_, i) => ({
         id: `row-${Date.now()}-${i}`,
         nama: '',
+        nipd: '',
+        jk: 'L',
+        jenisKelamin: 'Laki-laki',
         nisn: '',
-        jenisKelamin: '',
-        agama: 'Islam',
-        kelas: defaultKelas,
+        tempatLahir: '',
         tanggalLahir: '',
+        nik: '',
+        agama: 'Islam',
         alamat: '',
-        foto: ''
+        foto: '',
+        kelas: defaultKelas
       }));
       setRows(initialRows);
     }
@@ -94,13 +114,17 @@ export default function DaftarSiswa() {
     const newRow: Student = {
       id: `row-${Date.now()}-${rows.length}`,
       nama: '',
+      nipd: '',
+      jk: 'L',
+      jenisKelamin: 'Laki-laki',
       nisn: '',
-      jenisKelamin: '',
-      agama: 'Islam',
-      kelas: defaultKelas,
+      tempatLahir: '',
       tanggalLahir: '',
+      nik: '',
+      agama: 'Islam',
       alamat: '',
-      foto: ''
+      foto: '',
+      kelas: defaultKelas
     };
     setRows([...rows, newRow]);
   };
@@ -110,34 +134,52 @@ export default function DaftarSiswa() {
     const newRows: Student[] = Array.from({ length: count }, (_, i) => ({
       id: `row-${Date.now()}-${rows.length + i}`,
       nama: '',
+      nipd: '',
+      jk: 'L',
+      jenisKelamin: 'Laki-laki',
       nisn: '',
-      jenisKelamin: '',
-      agama: 'Islam',
-      kelas: defaultKelas,
+      tempatLahir: '',
       tanggalLahir: '',
+      nik: '',
+      agama: 'Islam',
       alamat: '',
-      foto: ''
+      foto: '',
+      kelas: defaultKelas
     }));
     setRows([...rows, ...newRows]);
   };
 
   const handleRowChange = (id: string, field: keyof Student, value: string) => {
-    setRows(rows.map(row => row.id === id ? { ...row, [field]: value } : row));
+    setRows(rows.map(row => {
+      if (row.id !== id) return row;
+      if (field === 'jk') {
+        const normalizedJk = value.toUpperCase().startsWith('P') ? 'P' : 'L';
+        return {
+          ...row,
+          jk: normalizedJk,
+          jenisKelamin: normalizedJk === 'P' ? 'Perempuan' : 'Laki-laki'
+        };
+      }
+      return { ...row, [field]: value };
+    }));
   };
 
   const handleDeleteRow = (id: string) => {
     if (rows.length <= 1) {
-      // Keep at least one row empty
       setRows([{
         id: `row-${Date.now()}`,
         nama: '',
+        nipd: '',
+        jk: 'L',
+        jenisKelamin: 'Laki-laki',
         nisn: '',
-        jenisKelamin: '',
-        agama: 'Islam',
-        kelas: `Kelas ${selectedGrade}`,
+        tempatLahir: '',
         tanggalLahir: '',
+        nik: '',
+        agama: 'Islam',
         alamat: '',
-        foto: ''
+        foto: '',
+        kelas: rombelLabels[0] || `Kelas ${selectedGrade}A`
       }]);
     } else {
       setRows(rows.filter(row => row.id !== id));
@@ -145,17 +187,21 @@ export default function DaftarSiswa() {
   };
 
   const handleClearData = () => {
-    if (window.confirm(`Apakah Anda yakin ingin menghapus semua data siswa untuk Kelas ${selectedGrade}?`)) {
+    if (window.confirm(`Apakah Anda yakin ingin mengosongkan semua data siswa untuk Kelas ${selectedGrade}?`)) {
       const resetRows: Student[] = Array.from({ length: 3 }, (_, i) => ({
         id: `row-${Date.now()}-${i}`,
         nama: '',
+        nipd: '',
+        jk: 'L',
+        jenisKelamin: 'Laki-laki',
         nisn: '',
-        jenisKelamin: '',
-        agama: 'Islam',
-        kelas: `Kelas ${selectedGrade}`,
+        tempatLahir: '',
         tanggalLahir: '',
+        nik: '',
+        agama: 'Islam',
         alamat: '',
-        foto: ''
+        foto: '',
+        kelas: rombelLabels[0] || `Kelas ${selectedGrade}A`
       }));
       setRows(resetRows);
     }
@@ -189,20 +235,23 @@ export default function DaftarSiswa() {
     reader.readAsDataURL(file);
   };
 
-  // Handle direct paste on table inputs
+  // Handle direct paste on table inputs with Excel column mapping
   const handleInputPaste = (e: React.ClipboardEvent<HTMLInputElement>, startIdx: number, startCol: string) => {
     const clipboardData = e.clipboardData.getData('text');
-    if (!clipboardData || !clipboardData.includes('\t')) return; // Allow normal text paste if not tabular
+    if (!clipboardData || !clipboardData.includes('\t')) return;
     
     e.preventDefault();
     const pastedLines = clipboardData.split(/\r?\n/).filter(line => line.trim() !== '');
     if (pastedLines.length === 0) return;
 
-    const columnsOrder: (keyof Student)[] = ['nama', 'nisn', 'jenisKelamin', 'kelas', 'tanggalLahir', 'alamat'];
+    const columnsOrder: (keyof Student)[] = [
+      'nama', 'nipd', 'jk', 'nisn', 'tempatLahir', 'tanggalLahir', 'nik', 'agama', 'alamat'
+    ];
     const startColIndex = columnsOrder.indexOf(startCol as keyof Student);
     if (startColIndex === -1) return;
 
     const newRows = [...rows];
+    const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
 
     pastedLines.forEach((line, lineIdx) => {
       const targetRowIdx = startIdx + lineIdx;
@@ -213,12 +262,17 @@ export default function DaftarSiswa() {
         newRows.push({
           id: `row-${Date.now()}-${newRows.length}`,
           nama: '',
+          nipd: '',
+          jk: 'L',
+          jenisKelamin: 'Laki-laki',
           nisn: '',
-          jenisKelamin: '',
-          kelas: `Kelas ${selectedGrade}`,
+          tempatLahir: '',
           tanggalLahir: '',
+          nik: '',
+          agama: 'Islam',
           alamat: '',
-          foto: ''
+          foto: '',
+          kelas: defaultKelas
         });
       }
 
@@ -226,10 +280,20 @@ export default function DaftarSiswa() {
         const colIndex = startColIndex + valIdx;
         if (colIndex < columnsOrder.length) {
           const field = columnsOrder[colIndex];
-          newRows[targetRowIdx] = {
-            ...newRows[targetRowIdx],
-            [field]: val.trim()
-          };
+          const cleanVal = val.trim();
+          if (field === 'jk') {
+            const normalizedJk = cleanVal.toUpperCase().startsWith('P') ? 'P' : 'L';
+            newRows[targetRowIdx] = {
+              ...newRows[targetRowIdx],
+              jk: normalizedJk,
+              jenisKelamin: normalizedJk === 'P' ? 'Perempuan' : 'Laki-laki'
+            };
+          } else {
+            newRows[targetRowIdx] = {
+              ...newRows[targetRowIdx],
+              [field]: cleanVal
+            };
+          }
         }
       });
     });
@@ -237,7 +301,8 @@ export default function DaftarSiswa() {
     setRows(newRows);
   };
 
-  // Process paste from Modal (e.g. copied from Excel/Spreadsheet)
+  // Process paste from Modal (e.g. copied directly from Dapodik/Excel table)
+  // Columns: No (optional) | Nama | NIPD | JK | NISN | Tempat Lahir | Tanggal Lahir | NIK | Agama | Alamat
   const handleProcessPasteModal = () => {
     if (!pasteText.trim()) {
       setIsPasteModalOpen(false);
@@ -245,23 +310,45 @@ export default function DaftarSiswa() {
     }
 
     const lines = pasteText.split(/\r?\n/).filter(l => l.trim() !== '');
+    const defaultKelas = rombelLabels[0] || `Kelas ${selectedGrade}A`;
+
     const pastedStudents: Student[] = lines.map((line, i) => {
-      const cols = line.split('\t');
+      const rawCols = line.split('\t').map(c => c.trim());
+      
+      // Determine if column 0 is a row number (e.g. '1', '2', '01'...)
+      let cols = rawCols;
+      if (rawCols.length >= 2 && /^\d+$/.test(rawCols[0]) && isNaN(Number(rawCols[1]))) {
+        cols = rawCols.slice(1);
+      }
+
+      const rawJk = cols[2]?.toUpperCase() || '';
+      const jkVal = rawJk.startsWith('P') ? 'P' : 'L';
+
       return {
         id: `row-pasted-${Date.now()}-${i}`,
-        nama: cols[0]?.trim() || '',
-        nisn: cols[1]?.trim() || '',
-        jenisKelamin: cols[2]?.trim() || '',
-        kelas: cols[3]?.trim() || `Kelas ${selectedGrade}`,
-        tanggalLahir: cols[4]?.trim() || '',
-        alamat: cols[5]?.trim() || '',
-        foto: ''
+        nama: cols[0] || '',
+        nipd: cols[1] || '',
+        jk: jkVal,
+        jenisKelamin: jkVal === 'P' ? 'Perempuan' : 'Laki-laki',
+        nisn: cols[3] || '',
+        tempatLahir: cols[4] || '',
+        tanggalLahir: cols[5] || '',
+        nik: cols[6] || '',
+        agama: cols[7] || 'Islam',
+        alamat: cols[8] || '',
+        foto: '',
+        kelas: defaultKelas
       };
     });
 
-    // Determine whether to overwrite empty rows or append
+    // Replace or append
     const nonBlankRows = rows.filter(r => r.nama.trim() !== '' || r.nisn.trim() !== '');
-    setRows([...nonBlankRows, ...pastedStudents]);
+    if (nonBlankRows.length === 0) {
+      setRows(pastedStudents);
+    } else {
+      setRows([...nonBlankRows, ...pastedStudents]);
+    }
+
     setPasteText('');
     setIsPasteModalOpen(false);
   };
@@ -278,16 +365,16 @@ export default function DaftarSiswa() {
     return bytes;
   };
 
-  // Export to Word Document (.docx)
+  // Export to Word Document (.docx) with the exact table columns and 3x4 photo embedding
   const exportToWord = async () => {
     setIsExporting(true);
     try {
       const activeStudents = rows.filter(r => 
-        r.nama.trim() !== '' || r.nisn.trim() !== '' || r.alamat.trim() !== ''
+        r.nama.trim() !== '' || r.nisn.trim() !== '' || r.nipd?.trim() !== ''
       );
       const dataToExport = activeStudents.length > 0 ? activeStudents : rows;
 
-      // Define page dimensions (TWIPs: 1 inch = 1440 TWIPs, 1 mm ~ 56.7 TWIPs)
+      // Define page dimensions (TWIPs: 1 inch = 1440 TWIPs)
       // A4: 210 x 297 mm -> 11906 x 16838
       // F4 (Folio): 215.9 x 330.2 mm -> 12240 x 18720
       let pageDimensions = {
@@ -303,78 +390,51 @@ export default function DaftarSiswa() {
       }
 
       const headerShading = {
-        fill: "047857", // emerald-700
+        fill: "0F172A", // slate-900 / dark header
         type: ShadingType.CLEAR,
         color: "auto"
       };
 
       const cellBorders = {
-        top: { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" },
-        bottom: { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" },
-        left: { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" },
-        right: { style: BorderStyle.SINGLE, size: 4, color: "CCCCCC" },
+        top: { style: BorderStyle.SINGLE, size: 2, color: "CBD5E1" },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: "CBD5E1" },
+        left: { style: BorderStyle.SINGLE, size: 2, color: "CBD5E1" },
+        right: { style: BorderStyle.SINGLE, size: 2, color: "CBD5E1" },
       };
 
-      // Table Headers
+      // Col percentage widths for landscape layout:
+      // Total: 4 + 17 + 8 + 5 + 9 + 10 + 10 + 12 + 7 + 11 + 7 = 100%
+      const colWidths = [4, 17, 8, 5, 9, 10, 10, 12, 7, 11, 7];
+
+      const createHeaderCell = (text: string, widthPct: number) => new TableCell({
+        children: [
+          new Paragraph({
+            children: [new TextRun({ text, bold: true, color: "FFFFFF", size: 18 })],
+            alignment: AlignmentType.CENTER
+          })
+        ],
+        shading: headerShading,
+        borders: cellBorders,
+        verticalAlign: VerticalAlign.CENTER,
+        width: { size: widthPct, type: WidthType.PERCENTAGE },
+        margins: { top: 120, bottom: 120, left: 60, right: 60 }
+      });
+
+      // Table Headers matching the user's image + Foto 3x4
       const headerRow = new TableRow({
         tableHeader: true,
         children: [
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "NO", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 5, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "NAMA SISWA", bold: true, color: "FFFFFF" })] })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 24, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "NISN", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 13, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "JENIS KELAMIN", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 10, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "KELAS", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 8, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "TANGGAL LAHIR", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 12, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "ALAMAT", bold: true, color: "FFFFFF" })] })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 17, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
-          new TableCell({
-            children: [new Paragraph({ children: [new TextRun({ text: "FOTO (3x4)", bold: true, color: "FFFFFF" })], alignment: AlignmentType.CENTER })],
-            shading: headerShading,
-            borders: cellBorders,
-            width: { size: 11, type: WidthType.PERCENTAGE },
-            margins: { top: 120, bottom: 120, left: 100, right: 100 }
-          }),
+          createHeaderCell("No", colWidths[0]),
+          createHeaderCell("Nama", colWidths[1]),
+          createHeaderCell("NIPD", colWidths[2]),
+          createHeaderCell("JK", colWidths[3]),
+          createHeaderCell("NISN", colWidths[4]),
+          createHeaderCell("Tempat Lahir", colWidths[5]),
+          createHeaderCell("Tanggal Lahir", colWidths[6]),
+          createHeaderCell("NIK", colWidths[7]),
+          createHeaderCell("Agama", colWidths[8]),
+          createHeaderCell("Alamat", colWidths[9]),
+          createHeaderCell("Foto (3x4)", colWidths[10]),
         ]
       });
 
@@ -382,7 +442,7 @@ export default function DaftarSiswa() {
       const dataRows = dataToExport.map((s, idx) => {
         let photoChildren: any[] = [
           new Paragraph({
-            children: [new TextRun({ text: "[Foto 3x4]", color: "888888", size: 18 })],
+            children: [new TextRun({ text: "[3x4]", color: "94A3B8", size: 16 })],
             alignment: AlignmentType.CENTER
           })
         ];
@@ -396,8 +456,8 @@ export default function DaftarSiswa() {
                   new ImageRun({
                     data: bytes,
                     transformation: {
-                      width: 60,  // approx 3cm aspect ratio 3:4
-                      height: 80
+                      width: 48,  // 3x4 aspect ratio
+                      height: 64
                     },
                     type: s.foto.includes('png') ? "png" : "jpg"
                   })
@@ -410,47 +470,37 @@ export default function DaftarSiswa() {
           }
         }
 
+        const createDataCell = (text: string, widthPct: number, align: any = AlignmentType.LEFT) => new TableCell({
+          children: [
+            new Paragraph({
+              children: [new TextRun({ text: text || '-', size: 18 })],
+              alignment: align
+            })
+          ],
+          borders: cellBorders,
+          verticalAlign: VerticalAlign.CENTER,
+          width: { size: widthPct, type: WidthType.PERCENTAGE },
+          margins: { top: 80, bottom: 80, left: 60, right: 60 }
+        });
+
         return new TableRow({
           children: [
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: (idx + 1).toString() })], alignment: AlignmentType.CENTER })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.nama || '-' })] })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.nisn || '-' })], alignment: AlignmentType.CENTER })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.jenisKelamin || '-' })], alignment: AlignmentType.CENTER })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.kelas || `Kelas ${selectedGrade}` })], alignment: AlignmentType.CENTER })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.tanggalLahir || '-' })], alignment: AlignmentType.CENTER })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
-            new TableCell({
-              children: [new Paragraph({ children: [new TextRun({ text: s.alamat || '-' })] })],
-              borders: cellBorders,
-              margins: { top: 100, bottom: 100, left: 100, right: 100 }
-            }),
+            createDataCell((idx + 1).toString(), colWidths[0], AlignmentType.CENTER),
+            createDataCell(s.nama, colWidths[1], AlignmentType.LEFT),
+            createDataCell(s.nipd || '-', colWidths[2], AlignmentType.CENTER),
+            createDataCell(s.jk || (s.jenisKelamin?.startsWith('P') ? 'P' : 'L'), colWidths[3], AlignmentType.CENTER),
+            createDataCell(s.nisn || '-', colWidths[4], AlignmentType.CENTER),
+            createDataCell(s.tempatLahir || '-', colWidths[5], AlignmentType.LEFT),
+            createDataCell(s.tanggalLahir || '-', colWidths[6], AlignmentType.CENTER),
+            createDataCell(s.nik || '-', colWidths[7], AlignmentType.CENTER),
+            createDataCell(s.agama || 'Islam', colWidths[8], AlignmentType.CENTER),
+            createDataCell(s.alamat || '-', colWidths[9], AlignmentType.LEFT),
             new TableCell({
               children: photoChildren,
               borders: cellBorders,
-              margins: { top: 80, bottom: 80, left: 60, right: 60 }
+              verticalAlign: VerticalAlign.CENTER,
+              width: { size: colWidths[10], type: WidthType.PERCENTAGE },
+              margins: { top: 60, bottom: 60, left: 40, right: 40 }
             })
           ]
         });
@@ -467,36 +517,50 @@ export default function DaftarSiswa() {
                   orientation: orientation === 'landscape' ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT
                 },
                 margin: {
-                  top: 1440, // 1 inch
-                  bottom: 1440,
-                  left: 1440,
-                  right: 1440
+                  top: 1000,
+                  bottom: 1000,
+                  left: 1000,
+                  right: 1000
                 }
               }
             },
             children: [
+              // Header Titles at the VERY TOP of the document
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: `DAFTAR DATA SISWA KELAS ${selectedGrade}`,
+                    text: `DAFTAR SISWA KELAS ${selectedGrade}`,
                     bold: true,
-                    size: 28
+                    size: 26
                   })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 120 }
+                spacing: { after: 100 }
               }),
               new Paragraph({
                 children: [
                   new TextRun({
-                    text: `${profile?.namaSekolah || 'SEKOLAH DASAR'} | Tahun Pelajaran: ${profile?.tahunPelajaran || '2025/2026'}`,
-                    size: 22,
-                    color: "475569"
+                    text: `${profile?.namaSekolah || 'SEKOLAH DASAR'}`,
+                    bold: true,
+                    size: 22
                   })
                 ],
                 alignment: AlignmentType.CENTER,
-                spacing: { after: 360 }
+                spacing: { after: 80 }
               }),
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `Tahun Pelajaran: ${profile?.tahunPelajaran || '2025/2026'} | Semester: Ganjil & Genap`,
+                    size: 20,
+                    color: "334155"
+                  })
+                ],
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 300 }
+              }),
+
+              // Data Table
               new Table({
                 rows: [headerRow, ...dataRows],
                 width: {
@@ -504,15 +568,59 @@ export default function DaftarSiswa() {
                   type: WidthType.PERCENTAGE
                 }
               }),
-              new Paragraph({
-                children: [
-                  new TextRun({
-                    text: `Wali Kelas / Guru PAI: ${profile?.namaGuru || '______________________'}`,
-                    size: 22
+
+              // Footer Signatures
+              new Paragraph({ spacing: { before: 400 }, children: [] }),
+              new Table({
+                borders: {
+                  top: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                  bottom: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                  left: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                  right: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                  insideVertical: { style: BorderStyle.NONE, size: 0, color: "auto" },
+                },
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        children: [
+                          new Paragraph({ children: [new TextRun({ text: "Mengetahui,", size: 20 })], alignment: AlignmentType.CENTER }),
+                          new Paragraph({ children: [new TextRun({ text: `Kepala Sekolah ${profile?.namaSekolah || ''}`, bold: true, size: 20 })], alignment: AlignmentType.CENTER })
+                        ]
+                      }),
+                      new TableCell({
+                        children: [
+                          new Paragraph({ children: [new TextRun({ text: `${profile?.namaSekolah?.split(' ')[1] || 'Tempat'}, ............................. 202...`, size: 20 })], alignment: AlignmentType.CENTER }),
+                          new Paragraph({ children: [new TextRun({ text: "Guru PAI / Wali Kelas,", bold: true, size: 20 })], alignment: AlignmentType.CENTER })
+                        ]
+                      }),
+                    ]
+                  }),
+                  new TableRow({
+                    children: [
+                      new TableCell({ children: [new Paragraph({ spacing: { before: 700 } })] }),
+                      new TableCell({ children: [new Paragraph({ spacing: { before: 700 } })] })
+                    ]
+                  }),
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        children: [
+                          new Paragraph({ children: [new TextRun({ text: profile?.namaKepalaSekolah || '( ........................................ )', bold: true, underline: {}, size: 20 })], alignment: AlignmentType.CENTER }),
+                          new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nipKepalaSekolah || '........................................'}`, size: 19 })], alignment: AlignmentType.CENTER })
+                        ]
+                      }),
+                      new TableCell({
+                        children: [
+                          new Paragraph({ children: [new TextRun({ text: profile?.namaGuru || '( ........................................ )', bold: true, underline: {}, size: 20 })], alignment: AlignmentType.CENTER }),
+                          new Paragraph({ children: [new TextRun({ text: `NIP. ${profile?.nip || '........................................'}`, size: 19 })], alignment: AlignmentType.CENTER })
+                        ]
+                      }),
+                    ]
                   })
-                ],
-                alignment: AlignmentType.RIGHT,
-                spacing: { before: 480 }
+                ]
               })
             ]
           }
@@ -542,7 +650,7 @@ export default function DaftarSiswa() {
             </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-2">Daftar Siswa</h1>
             <p className="text-slate-500 text-sm">
-              Kelola data siswa per kelas, tempel (paste) dari spreadsheet, serta ekspor ke dokumen Word berformat rapi.
+              Kelola data lengkap peserta didik (NIPD, JK, NISN, NIK, Alamat, dan Foto 3x4), tempel langsung dari spreadsheet/Excel, serta ekspor dokumen Word siap cetak.
             </p>
           </div>
 
@@ -705,24 +813,26 @@ export default function DaftarSiswa() {
 
             <div className="text-xs text-slate-500 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1.5">
               <Check size={14} className="text-emerald-600" />
-              <span>Tips: Blok & Paste data dari Excel langsung pada kolom teks</span>
+              <span>Sesuai Format Lampiran Dapodik (Nama, NIPD, JK, NISN, Tempat Lahir, Tanggal Lahir, NIK, Agama, Alamat, Foto)</span>
             </div>
           </div>
 
-          <div className="overflow-x-auto max-h-[680px] overflow-y-auto rounded-2xl border border-slate-200/60 bg-white/70">
+          <div className="overflow-x-auto max-h-[720px] overflow-y-auto rounded-2xl border border-slate-200/60 bg-white/70">
             <table className="w-full text-left text-sm border-collapse">
-              <thead className="sticky top-0 bg-slate-800 text-white z-10 shadow-sm">
+              <thead className="sticky top-0 bg-slate-900 text-white z-10 shadow-sm">
                 <tr>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-12 text-center text-xs">No</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider min-w-[200px] text-xs">Nama Siswa</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">NISN</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Jenis Kelamin</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-32 text-center text-xs">Agama</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Rombel / Kelas</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-36 text-center text-xs">Tanggal Lahir</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider min-w-[220px] text-xs">Alamat</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-32 text-center text-xs">Foto (3x4)</th>
-                  <th className="p-3.5 font-bold uppercase tracking-wider w-14 text-center text-xs">Aksi</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-10 text-center text-xs">No</th>
+                  <th className="p-3 font-bold uppercase tracking-wider min-w-[200px] text-xs">Nama</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-28 text-center text-xs">NIPD</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-20 text-center text-xs">JK</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-32 text-center text-xs">NISN</th>
+                  <th className="p-3 font-bold uppercase tracking-wider min-w-[140px] text-xs">Tempat Lahir</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-32 text-center text-xs">Tanggal Lahir</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-40 text-center text-xs">NIK</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-28 text-center text-xs">Agama</th>
+                  <th className="p-3 font-bold uppercase tracking-wider min-w-[200px] text-xs">Alamat</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-28 text-center text-xs">Foto (3x4)</th>
+                  <th className="p-3 font-bold uppercase tracking-wider w-14 text-center text-xs">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/70 text-slate-700">
@@ -734,55 +844,100 @@ export default function DaftarSiswa() {
                     className="hover:bg-emerald-50/30 transition-colors group"
                   >
                     {/* No */}
-                    <td className="p-3 text-center font-bold text-slate-500 text-xs">
+                    <td className="p-2 text-center font-bold text-slate-500 text-xs">
                       {idx + 1}
                     </td>
 
-                    {/* Nama Siswa */}
-                    <td className="p-2">
+                    {/* Nama */}
+                    <td className="p-1.5">
                       <input
                         type="text"
                         value={row.nama}
                         onChange={(e) => handleRowChange(row.id, 'nama', e.target.value)}
                         onPaste={(e) => handleInputPaste(e, idx, 'nama')}
-                        placeholder="Nama lengkap siswa..."
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-medium text-slate-800"
+                        placeholder="Nama Siswa..."
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-semibold text-slate-800"
                       />
                     </td>
 
+                    {/* NIPD */}
+                    <td className="p-1.5">
+                      <input
+                        type="text"
+                        value={row.nipd || ''}
+                        onChange={(e) => handleRowChange(row.id, 'nipd', e.target.value)}
+                        onPaste={(e) => handleInputPaste(e, idx, 'nipd')}
+                        placeholder="NIPD"
+                        className="w-full px-2 py-1.5 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-mono text-slate-700"
+                      />
+                    </td>
+
+                    {/* JK */}
+                    <td className="p-1.5">
+                      <select
+                        value={row.jk || (row.jenisKelamin?.startsWith('P') ? 'P' : 'L')}
+                        onChange={(e) => handleRowChange(row.id, 'jk', e.target.value)}
+                        className="w-full px-1.5 py-1.5 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-bold text-slate-800 cursor-pointer"
+                      >
+                        <option value="L">L</option>
+                        <option value="P">P</option>
+                      </select>
+                    </td>
+
                     {/* NISN */}
-                    <td className="p-2">
+                    <td className="p-1.5">
                       <input
                         type="text"
                         value={row.nisn}
                         onChange={(e) => handleRowChange(row.id, 'nisn', e.target.value)}
                         onPaste={(e) => handleInputPaste(e, idx, 'nisn')}
-                        placeholder="00xxxxxxxxx"
-                        className="w-full px-3 py-2 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-mono text-slate-700"
+                        placeholder="NISN"
+                        className="w-full px-2 py-1.5 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-mono text-slate-700"
                       />
                     </td>
 
-                    {/* Jenis Kelamin */}
-                    <td className="p-2">
-                      <select
-                        value={row.jenisKelamin || ''}
-                        onChange={(e) => handleRowChange(row.id, 'jenisKelamin', e.target.value)}
-                        onPaste={(e: any) => handleInputPaste(e, idx, 'jenisKelamin')}
-                        className="w-full px-3 py-2 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-semibold text-slate-800"
-                      >
-                        <option value="">- Pilih -</option>
-                        <option value="Laki-laki">Laki-laki</option>
-                        <option value="Perempuan">Perempuan</option>
-                      </select>
+                    {/* Tempat Lahir */}
+                    <td className="p-1.5">
+                      <input
+                        type="text"
+                        value={row.tempatLahir || ''}
+                        onChange={(e) => handleRowChange(row.id, 'tempatLahir', e.target.value)}
+                        onPaste={(e) => handleInputPaste(e, idx, 'tempatLahir')}
+                        placeholder="Tempat Lahir"
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs text-slate-700"
+                      />
+                    </td>
+
+                    {/* Tanggal Lahir */}
+                    <td className="p-1.5">
+                      <input
+                        type="text"
+                        value={row.tanggalLahir}
+                        onChange={(e) => handleRowChange(row.id, 'tanggalLahir', e.target.value)}
+                        onPaste={(e) => handleInputPaste(e, idx, 'tanggalLahir')}
+                        placeholder="DD/MM/YYYY"
+                        className="w-full px-2 py-1.5 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs text-slate-700 font-mono"
+                      />
+                    </td>
+
+                    {/* NIK */}
+                    <td className="p-1.5">
+                      <input
+                        type="text"
+                        value={row.nik || ''}
+                        onChange={(e) => handleRowChange(row.id, 'nik', e.target.value)}
+                        onPaste={(e) => handleInputPaste(e, idx, 'nik')}
+                        placeholder="NIK (16 Digit)"
+                        className="w-full px-2 py-1.5 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-mono text-slate-700"
+                      />
                     </td>
 
                     {/* Agama */}
-                    <td className="p-2">
+                    <td className="p-1.5">
                       <select
                         value={row.agama || 'Islam'}
                         onChange={(e) => handleRowChange(row.id, 'agama', e.target.value)}
-                        onPaste={(e: any) => handleInputPaste(e, idx, 'agama')}
-                        className="w-full px-3 py-2 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-semibold text-slate-800"
+                        className="w-full px-2 py-1.5 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs font-semibold text-slate-800 cursor-pointer"
                       >
                         <option value="Islam">Islam</option>
                         <option value="Kristen">Kristen</option>
@@ -793,48 +948,23 @@ export default function DaftarSiswa() {
                       </select>
                     </td>
 
-                    {/* Kelas */}
-                    <td className="p-2">
-                      <select
-                        value={row.kelas || rombelLabels[0] || `Kelas ${selectedGrade}A`}
-                        onChange={(e) => handleRowChange(row.id, 'kelas', e.target.value)}
-                        className="w-full px-3 py-2 text-center rounded-xl bg-white border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm font-semibold text-slate-800 cursor-pointer"
-                      >
-                        {rombelLabels.map((lbl) => (
-                          <option key={lbl} value={lbl}>{lbl}</option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Tanggal Lahir */}
-                    <td className="p-2">
-                      <input
-                        type="text"
-                        value={row.tanggalLahir}
-                        onChange={(e) => handleRowChange(row.id, 'tanggalLahir', e.target.value)}
-                        onPaste={(e) => handleInputPaste(e, idx, 'tanggalLahir')}
-                        placeholder="DD/MM/YYYY"
-                        className="w-full px-3 py-2 text-center rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm text-slate-700"
-                      />
-                    </td>
-
                     {/* Alamat */}
-                    <td className="p-2">
+                    <td className="p-1.5">
                       <input
                         type="text"
                         value={row.alamat}
                         onChange={(e) => handleRowChange(row.id, 'alamat', e.target.value)}
                         onPaste={(e) => handleInputPaste(e, idx, 'alamat')}
-                        placeholder="Alamat lengkap..."
-                        className="w-full px-3 py-2 rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-sm text-slate-700"
+                        placeholder="Alamat tempat tinggal..."
+                        className="w-full px-2.5 py-1.5 rounded-xl bg-white/80 border border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none transition-all text-xs text-slate-700"
                       />
                     </td>
 
                     {/* Foto Siswa (3x4 ratio) */}
-                    <td className="p-2 text-center">
+                    <td className="p-1.5 text-center">
                       <div className="flex flex-col items-center justify-center">
                         {row.foto ? (
-                          <div className="relative group/foto w-14 h-[74px] rounded-lg overflow-hidden border-2 border-emerald-400 bg-slate-100 shadow-sm mx-auto">
+                          <div className="relative group/foto w-11 h-[58px] rounded-lg overflow-hidden border-2 border-emerald-500 bg-slate-100 shadow-sm mx-auto">
                             <img
                               src={row.foto}
                               alt="Foto Siswa"
@@ -846,17 +976,17 @@ export default function DaftarSiswa() {
                               title="Hapus foto"
                               className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover/foto:opacity-100 transition-opacity flex items-center justify-center text-white text-xs"
                             >
-                              <X size={16} />
+                              <X size={14} />
                             </button>
                           </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => fileInputRefs.current[row.id]?.click()}
-                            className="w-14 h-[74px] rounded-lg border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/80 hover:bg-emerald-50/50 flex flex-col items-center justify-center transition-colors text-slate-400 hover:text-emerald-600 gap-0.5"
+                            className="w-11 h-[58px] rounded-lg border border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/80 hover:bg-emerald-50/50 flex flex-col items-center justify-center transition-colors text-slate-400 hover:text-emerald-600 gap-0.5"
                           >
-                            <ImageIcon size={16} />
-                            <span className="text-[10px] font-bold">3x4</span>
+                            <ImageIcon size={14} />
+                            <span className="text-[9px] font-bold">3x4</span>
                           </button>
                         )}
 
@@ -874,10 +1004,10 @@ export default function DaftarSiswa() {
                     </td>
 
                     {/* Aksi Hapus */}
-                    <td className="p-2 text-center">
+                    <td className="p-1.5 text-center">
                       <button
                         onClick={() => handleDeleteRow(row.id)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
                         title="Hapus baris ini"
                       >
                         <Trash2 size={16} />
@@ -941,12 +1071,13 @@ export default function DaftarSiswa() {
                 <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-3.5 mb-4 text-xs text-emerald-800">
                   <p className="font-bold mb-1 flex items-center gap-1.5">
                     <AlertCircle size={14} />
-                    Cara Penggunaan:
+                    Susunan Kolom yang Didukung:
+                  </p>
+                  <p className="leading-relaxed font-mono text-[11px] bg-white/80 p-2 rounded-xl border border-emerald-200 mb-2">
+                    [No] &nbsp;|&nbsp; <strong>Nama</strong> &nbsp;|&nbsp; <strong>NIPD</strong> &nbsp;|&nbsp; <strong>JK (L/P)</strong> &nbsp;|&nbsp; <strong>NISN</strong> &nbsp;|&nbsp; <strong>Tempat Lahir</strong> &nbsp;|&nbsp; <strong>Tanggal Lahir</strong> &nbsp;|&nbsp; <strong>NIK</strong> &nbsp;|&nbsp; <strong>Agama</strong> &nbsp;|&nbsp; <strong>Alamat</strong>
                   </p>
                   <p className="leading-relaxed">
-                    1. Buka file Excel Anda dan salin (blok & copy) kolom dengan urutan:<br />
-                    <strong className="text-emerald-900">Nama Siswa | NISN | L/P | Kelas | Tanggal Lahir | Alamat</strong><br />
-                    2. Tempel (Ctrl+V) langsung ke kotak di bawah ini, lalu klik tombol <strong>"Proses & Masukkan Data"</strong>.
+                    Cukup salin (Copy / Ctrl+C) tabel dari Excel atau Dapodik Anda, lalu tempelkan (Paste / Ctrl+V) pada kotak teks di bawah ini. Sistem secara otomatis mendeteksi kolom dan mengisi data ke tabel siswa.
                   </p>
                 </div>
 
@@ -954,7 +1085,7 @@ export default function DaftarSiswa() {
                   rows={8}
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
-                  placeholder="Tempel (Paste) data dari Excel di sini..."
+                  placeholder="Tempelkan data yang Anda copy dari Excel di sini..."
                   className="w-full p-4 rounded-2xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none font-mono text-xs leading-relaxed text-slate-700 mb-4"
                 />
 
@@ -1002,7 +1133,7 @@ export default function DaftarSiswa() {
                 </div>
 
                 <p className="text-slate-500 text-sm mb-6">
-                  Pilih ukuran kertas (A4 atau F4) dan orientasi halaman yang sesuai dengan desain tabel data siswa yang telah Anda simpan.
+                  Pilih ukuran kertas (A4 atau F4/Folio) dan orientasi halaman. Dokumen akan dilengkapi judul kelas, tahun ajaran, semester di bagian atas, tabel data rapi, serta foto siswa 3x4.
                 </p>
 
                 {/* Ukuran Kertas Selection */}

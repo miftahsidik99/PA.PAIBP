@@ -29,13 +29,18 @@ export interface CalendarData {
 export interface Student {
   id: string;
   nama: string;
+  nipd?: string;
+  jk?: string; // 'L' | 'P' | 'Laki-laki' | 'Perempuan'
+  jenisKelamin?: string; // backwards compatibility
   nisn: string;
-  jenisKelamin?: string; // 'L' | 'P' | 'Laki-laki' | 'Perempuan' | ''
-  agama?: string;
-  kelas: string;
+  tempatLahir?: string;
   tanggalLahir: string;
+  nik?: string;
+  agama?: string;
   alamat: string;
   foto: string; // base64 or data URL
+  kelas: string;
+  rombel?: string;
 }
 
 export interface AttendanceRecord {
