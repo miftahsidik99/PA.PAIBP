@@ -37,69 +37,78 @@ export default function App() {
   const currentUserSessionId = useStore(state => state.currentUserSessionId);
 
   React.useEffect(() => {
-    let unsubscribeUser = () => {};
+    let unsubscribeUsers = () => {};
     let unsubscribeRequests = () => {};
     let lastWarningTime = 0;
 
-    if (currentUser) {
-      import('./lib/firebase').then(({ db, doc, onSnapshot }) => {
-        unsubscribeUser = onSnapshot(doc(db, 'global_users', currentUser), (snapshot) => {
-          if (!snapshot.exists()) return;
-          const data = snapshot.data();
-          const currentState = useStore.getState();
-          const usersData = currentState.usersData;
-          const currentLocal = usersData[currentUser] || {
-            profile: null,
-            calendarData: null,
-            schedules: {},
-            savedProtas: {},
-            generatedModulAtps: {},
-            atpBatches: {},
-            savedKktps: [],
-            students: {},
-            attendance: [],
-            modulAjarHistories: [],
-            rombelConfig: {},
-            jurnalState: { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
-            jurnalEntries: {},
-            label: 'Demo',
-            signupTime: Date.now()
+    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
+      // 1. Listen to all global_users in real time across all devices
+      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
+        const loaded: Record<string, any> = {};
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          const uid = docSnap.id.toLowerCase();
+          loaded[uid] = {
+            username: data.username || uid,
+            password: data.password || '123456',
+            label: data.label || 'Demo',
+            signupTime: data.signupTime || Date.now(),
+            profile: data.profile || null,
+            calendarData: data.calendarData || null,
+            schedules: data.schedules || {},
+            savedProtas: data.savedProtas || {},
+            students: data.students || {},
+            attendance: data.attendance || [],
+            atpBatches: data.atpBatches || {},
+            savedKktps: data.savedKktps || [],
+            modulAjarHistories: data.modulAjarHistories || [],
+            rombelConfig: data.rombelConfig || {},
+            jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+            jurnalEntries: data.jurnalEntries || {},
+            generatedModulAtps: data.generatedModulAtps || {},
+            activeSessionId: data.activeSessionId || null
           };
+        });
 
-          const updatedUser = {
-            ...currentLocal,
-            ...data
-          };
+        const currentState = useStore.getState();
+        useStore.setState({ usersData: loaded });
 
-          useStore.setState({
-            usersData: {
-              ...usersData,
-              [currentUser]: updatedUser
-            }
-          });
-
-          // Session and login attempt warning check
-          if (currentUserSessionId && data.activeSessionId && data.activeSessionId !== currentUserSessionId) {
+        // If user is currently logged in, check for multi-device session displacement or warning
+        if (currentState.currentUser && loaded[currentState.currentUser]) {
+          const activeUserDoc = loaded[currentState.currentUser];
+          if (
+            currentState.currentUserSessionId &&
+            activeUserDoc.activeSessionId &&
+            activeUserDoc.activeSessionId !== currentState.currentUserSessionId
+          ) {
             alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
             currentState.logout();
-          } else if (data.loginAttemptWarning && data.loginAttemptWarning > lastWarningTime) {
-            lastWarningTime = data.loginAttemptWarning;
-            if (Date.now() - data.loginAttemptWarning < 10000) {
+          } else if (activeUserDoc.loginAttemptWarning && activeUserDoc.loginAttemptWarning > lastWarningTime) {
+            lastWarningTime = activeUserDoc.loginAttemptWarning;
+            if (Date.now() - activeUserDoc.loginAttemptWarning < 10000) {
               alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
             }
           }
-        }, (error) => {
-          console.warn("Firestore user listener warning:", error);
-        });
-      }).catch(e => console.error(e));
-    }
+        }
+      }, (error) => {
+        console.warn("Firestore global_users listener warning:", error);
+      });
 
-    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
+      // 2. Listen to all upgrade_requests in real time
       unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
         const requests: any[] = [];
-        snapshot.forEach((doc) => {
-          requests.push(doc.data());
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          requests.push({
+            id: docSnap.id,
+            namaLengkap: data.namaLengkap || '',
+            noWhatsapp: data.noWhatsapp || '',
+            username: data.username || '',
+            timestamp: data.timestamp || Date.now(),
+            status: data.status || 'pending'
+          });
         });
+        requests.sort((a, b) => a.timestamp - b.timestamp);
         useStore.setState({ upgradeRequests: requests });
       }, (error) => {
         console.warn("Firestore upgrade_requests listener warning:", error);
@@ -107,10 +116,10 @@ export default function App() {
     }).catch(e => console.error(e));
 
     return () => {
-      unsubscribeUser();
+      unsubscribeUsers();
       unsubscribeRequests();
     };
-  }, [currentUser, currentUserSessionId]);
+  }, []);
 
   React.useEffect(() => {
     const pressedKeys = new Set<string>();

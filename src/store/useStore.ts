@@ -376,50 +376,50 @@ export const useStore = create<AppState>()(
       adminResetPassword: (username: string, newPassword: string) => {
         const state = get();
         const normalized = username.trim().toLowerCase();
-        const userData = state.usersData[normalized];
-        if (userData) {
-          set({
-            usersData: {
-              ...state.usersData,
-              [normalized]: {
-                ...userData,
-                password: newPassword
-              }
-            }
-          });
-          
-          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-            updateDoc(doc(db, 'global_users', normalized), {
-              password: newPassword
-            }).catch(e => console.error(e));
-          });
-        }
+        const userData = state.usersData[normalized] || initialUserData;
+        const updatedUser: UserData = {
+          ...userData,
+          password: newPassword
+        };
+        set({
+          usersData: {
+            ...state.usersData,
+            [normalized]: updatedUser
+          }
+        });
+        
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'global_users', normalized), {
+            username: normalized,
+            password: newPassword
+          }, { merge: true }).catch(e => console.error("Error resetting password in Firestore:", e));
+        }).catch(e => console.error(e));
       },
 
       adminSetLabel: (username: string, label: 'Full Time' | 'Demo') => {
         const state = get();
         const normalized = username.trim().toLowerCase();
-        const userData = state.usersData[normalized];
-        if (userData) {
-          const newSignupTime = label === 'Demo' ? Date.now() : userData.signupTime;
-          set({
-            usersData: {
-              ...state.usersData,
-              [normalized]: {
-                ...userData,
-                label,
-                signupTime: newSignupTime
-              }
-            }
-          });
-          
-          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-            updateDoc(doc(db, 'global_users', normalized), {
-              label,
-              signupTime: newSignupTime
-            }).catch(e => console.error(e));
-          });
-        }
+        const userData = state.usersData[normalized] || initialUserData;
+        const newSignupTime = label === 'Demo' ? Date.now() : (userData.signupTime || Date.now());
+        const updatedUser: UserData = {
+          ...userData,
+          label,
+          signupTime: newSignupTime
+        };
+        set({
+          usersData: {
+            ...state.usersData,
+            [normalized]: updatedUser
+          }
+        });
+        
+        import('../lib/firebase').then(({ db, doc, setDoc }) => {
+          setDoc(doc(db, 'global_users', normalized), {
+            username: normalized,
+            label,
+            signupTime: newSignupTime
+          }, { merge: true }).catch(e => console.error("Error setting label in Firestore:", e));
+        }).catch(e => console.error(e));
       },
 
       adminDeleteUser: (username: string) => {
@@ -430,8 +430,8 @@ export const useStore = create<AppState>()(
         set({ usersData: newUsersData });
         
         import('../lib/firebase').then(({ db, doc, deleteDoc }) => {
-          deleteDoc(doc(db, 'global_users', normalized)).catch(e => console.error(e));
-        });
+          deleteDoc(doc(db, 'global_users', normalized)).catch(e => console.error("Error deleting user from Firestore:", e));
+        }).catch(e => console.error(e));
       },
 
       adminUpdateUsername: (oldUsername: string, newUsername: string) => {
@@ -447,19 +447,13 @@ export const useStore = create<AppState>()(
           set({ usersData: newUsersData });
           
           import('../lib/firebase').then(({ db, doc, setDoc, deleteDoc }) => {
-            // copy to new
             setDoc(doc(db, 'global_users', normalizedNew), {
-              username: normalizedNew,
-              password: userData.password || '',
-              label: userData.label || 'Demo',
-              signupTime: userData.signupTime || Date.now(),
-              profile: userData.profile || null,
-              activeSessionId: userData.activeSessionId || null
-            }).then(() => {
-              // delete old
+              ...userData,
+              username: normalizedNew
+            }, { merge: true }).then(() => {
               deleteDoc(doc(db, 'global_users', normalizedOld)).catch(e => console.error(e));
             }).catch(e => console.error(e));
-          });
+          }).catch(e => console.error(e));
         }
       },
 
@@ -479,7 +473,7 @@ export const useStore = create<AppState>()(
         });
         
         import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'upgrade_requests', newRequest.id), newRequest).catch(e => console.error(e));
+          setDoc(doc(db, 'upgrade_requests', newRequest.id), newRequest, { merge: true }).catch(e => console.error(e));
         });
       },
 
@@ -490,25 +484,23 @@ export const useStore = create<AppState>()(
         if (request) {
           const updatedRequests = requests.map(r => r.id === requestId ? { ...r, status: 'approved' as const } : r);
           const normalized = request.username.trim().toLowerCase();
-          const userData = state.usersData[normalized];
-          const updatedUsersData = { ...state.usersData };
-          if (userData) {
-            updatedUsersData[normalized] = {
+          const userData = state.usersData[normalized] || initialUserData;
+          const updatedUsersData = {
+            ...state.usersData,
+            [normalized]: {
               ...userData,
-              label: 'Full Time'
-            };
-          }
+              label: 'Full Time' as const
+            }
+          };
           set({
             upgradeRequests: updatedRequests,
             usersData: updatedUsersData
           });
           
-          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-            updateDoc(doc(db, 'upgrade_requests', requestId), { status: 'approved' }).catch(e => console.error(e));
-            if (userData) {
-              updateDoc(doc(db, 'global_users', normalized), { label: 'Full Time' }).catch(e => console.error(e));
-            }
-          });
+          import('../lib/firebase').then(({ db, doc, setDoc }) => {
+            setDoc(doc(db, 'upgrade_requests', requestId), { status: 'approved' }, { merge: true }).catch(e => console.error(e));
+            setDoc(doc(db, 'global_users', normalized), { label: 'Full Time' }, { merge: true }).catch(e => console.error(e));
+          }).catch(e => console.error(e));
         }
       },
 
@@ -833,9 +825,6 @@ export const useStore = create<AppState>()(
         import('../lib/firebase').then(({ db, doc, setDoc }) => {
           setDoc(doc(db, 'global_users', username), {
             username,
-            password: currentData.password || '',
-            label: currentData.label || 'Demo',
-            signupTime: currentData.signupTime || Date.now(),
             profile: currentData.profile || null,
             calendarData: currentData.calendarData || null,
             schedules: currentData.schedules || {},

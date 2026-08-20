@@ -82,7 +82,8 @@ export default function Admin() {
         const loaded: Record<string, UserData> = {};
         snapshot.forEach(doc => {
           const data = doc.data();
-          loaded[doc.id] = {
+          const uid = doc.id.toLowerCase();
+          loaded[uid] = {
             profile: data.profile || null,
             calendarData: data.calendarData || null,
             schedules: data.schedules || {},
