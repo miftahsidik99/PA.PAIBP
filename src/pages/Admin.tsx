@@ -68,14 +68,16 @@ export default function Admin() {
   const [editFlashcardUrl, setEditFlashcardUrl] = useState('');
   const [flashcardToDelete, setFlashcardToDelete] = useState<{ id: string; title: string } | null>(null);
 
-  // Listen to all users from Firestore when admin is unlocked
+  // Listen to all users and upgrade requests from Firestore when admin is unlocked
   useEffect(() => {
     if (!isAdminUnlocked) return;
 
     let unsubscribeUsers: (() => void) | undefined;
+    let unsubscribeRequests: (() => void) | undefined;
     setIsLoadingUsers(true);
 
     import('../lib/firebase').then(({ db, collection, onSnapshot }) => {
+      // 1. Listen to users
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
         const loaded: Record<string, UserData> = {};
         snapshot.forEach(doc => {
@@ -102,14 +104,34 @@ export default function Admin() {
         });
         setCloudUsers(loaded);
         setIsLoadingUsers(false);
-        // Also sync to store usersData for actions
-        useStore.setState(prev => ({
-          usersData: { ...prev.usersData, ...loaded }
-        }));
+        // Set exact users list matching Cloud, do NOT merge with potentially stale local storage values
+        useStore.setState({ usersData: loaded });
       }, (error) => {
         console.warn("Admin users listener warning:", error);
         setIsLoadingUsers(false);
       });
+
+      // 2. Listen to upgrade requests
+      unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
+        const loadedRequests: UpgradeRequest[] = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          loadedRequests.push({
+            id: doc.id,
+            namaLengkap: data.namaLengkap || '',
+            noWhatsapp: data.noWhatsapp || '',
+            username: data.username || '',
+            timestamp: data.timestamp || Date.now(),
+            status: data.status || 'pending'
+          });
+        });
+        // Sort chronologically (oldest first) so that slice().reverse() displays newest first
+        loadedRequests.sort((a, b) => a.timestamp - b.timestamp);
+        useStore.setState({ upgradeRequests: loadedRequests });
+      }, (error) => {
+        console.warn("Admin upgrade requests listener warning:", error);
+      });
+
     }).catch(err => {
       console.error(err);
       setIsLoadingUsers(false);
@@ -117,6 +139,7 @@ export default function Admin() {
 
     return () => {
       if (unsubscribeUsers) unsubscribeUsers();
+      if (unsubscribeRequests) unsubscribeRequests();
     };
   }, [isAdminUnlocked]);
 
@@ -357,7 +380,7 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Stats Grid */}
+         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -367,7 +390,7 @@ export default function Admin() {
               </div>
             </div>
             <h2 className="text-3xl font-black text-slate-900">{usersList.length}</h2>
-            <p className="text-xs text-slate-500 mt-2">Akun terdaftar di penyimpanan lokal.</p>
+            <p className="text-xs text-slate-500 mt-2">Akun terdaftar secara realtime di server cloud.</p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -380,7 +403,7 @@ export default function Admin() {
             <h2 className="text-3xl font-black text-slate-900">
               {usersList.filter(u => u.label !== 'Full Time').length}
             </h2>
-            <p className="text-xs text-slate-500 mt-2">Akun dengan akses demo terbatas 24 jam.</p>
+            <p className="text-xs text-slate-500 mt-2">Akun demo yang terdaftar di database cloud.</p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -393,7 +416,7 @@ export default function Admin() {
             <h2 className="text-3xl font-black text-slate-900">
               {(upgradeRequests || []).filter(r => r.status === 'pending').length}
             </h2>
-            <p className="text-xs text-slate-500 mt-2">Menunggu persetujuan upgrade ke Full Time.</p>
+            <p className="text-xs text-slate-500 mt-2">Menunggu persetujuan upgrade ke Full Time secara realtime.</p>
           </div>
         </div>
 
