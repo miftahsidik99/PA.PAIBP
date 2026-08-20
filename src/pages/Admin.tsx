@@ -69,20 +69,15 @@ export default function Admin() {
   const [flashcardToDelete, setFlashcardToDelete] = useState<{ id: string; title: string } | null>(null);
 
   // Listen to all users and upgrade requests from Firestore when admin is unlocked
-  useEffect(() => {
-    if (!isAdminUnlocked) return;
-
-    let unsubscribeUsers: (() => void) | undefined;
-    let unsubscribeRequests: (() => void) | undefined;
+  const fetchAllData = React.useCallback(() => {
     setIsLoadingUsers(true);
-
-    import('../lib/firebase').then(({ db, collection, onSnapshot }) => {
-      // 1. Listen to users
-      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
+    import('../lib/firebase').then(({ db, collection, getDocs, onSnapshot }) => {
+      // 1. Direct one-time fetch for instant display
+      getDocs(collection(db, 'global_users')).then(snapshot => {
         const loaded: Record<string, UserData> = {};
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          const uid = doc.id.toLowerCase();
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const uid = docSnap.id.toLowerCase();
           loaded[uid] = {
             profile: data.profile || null,
             calendarData: data.calendarData || null,
@@ -97,28 +92,27 @@ export default function Admin() {
             rombelConfig: data.rombelConfig || {},
             jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
             jurnalEntries: data.jurnalEntries || {},
-            password: data.password || '',
+            password: data.password || '123456',
             label: data.label || 'Demo',
             signupTime: data.signupTime || Date.now(),
             activeSessionId: data.activeSessionId || undefined
           };
         });
         setCloudUsers(loaded);
-        setIsLoadingUsers(false);
-        // Set exact users list matching Cloud, do NOT merge with potentially stale local storage values
         useStore.setState({ usersData: loaded });
-      }, (error) => {
-        console.warn("Admin users listener warning:", error);
+        setIsLoadingUsers(false);
+      }).catch(err => {
+        console.warn("getDocs users warning:", err);
         setIsLoadingUsers(false);
       });
 
-      // 2. Listen to upgrade requests
-      unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
-        const loadedRequests: UpgradeRequest[] = [];
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          loadedRequests.push({
-            id: doc.id,
+      // 2. Direct one-time fetch for upgrade requests
+      getDocs(collection(db, 'upgrade_requests')).then(snapshot => {
+        const reqs: UpgradeRequest[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          reqs.push({
+            id: docSnap.id,
             namaLengkap: data.namaLengkap || '',
             noWhatsapp: data.noWhatsapp || '',
             username: data.username || '',
@@ -126,7 +120,73 @@ export default function Admin() {
             status: data.status || 'pending'
           });
         });
-        // Sort chronologically (oldest first) so that slice().reverse() displays newest first
+        reqs.sort((a, b) => a.timestamp - b.timestamp);
+        useStore.setState({ upgradeRequests: reqs });
+      }).catch(err => console.warn("getDocs upgrade_requests warning:", err));
+
+    }).catch(err => {
+      console.error(err);
+      setIsLoadingUsers(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!isAdminUnlocked) return;
+
+    fetchAllData();
+
+    let unsubscribeUsers: (() => void) | undefined;
+    let unsubscribeRequests: (() => void) | undefined;
+
+    import('../lib/firebase').then(({ db, collection, onSnapshot }) => {
+      // 1. Realtime listener for users
+      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
+        const loaded: Record<string, UserData> = {};
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const uid = docSnap.id.toLowerCase();
+          loaded[uid] = {
+            profile: data.profile || null,
+            calendarData: data.calendarData || null,
+            schedules: data.schedules || {},
+            savedProtas: data.savedProtas || {},
+            generatedModulAtps: data.generatedModulAtps || {},
+            atpBatches: data.atpBatches || {},
+            savedKktps: data.savedKktps || [],
+            students: data.students || {},
+            attendance: data.attendance || [],
+            modulAjarHistories: data.modulAjarHistories || [],
+            rombelConfig: data.rombelConfig || {},
+            jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+            jurnalEntries: data.jurnalEntries || {},
+            password: data.password || '123456',
+            label: data.label || 'Demo',
+            signupTime: data.signupTime || Date.now(),
+            activeSessionId: data.activeSessionId || undefined
+          };
+        });
+        setCloudUsers(loaded);
+        setIsLoadingUsers(false);
+        useStore.setState({ usersData: loaded });
+      }, (error) => {
+        console.warn("Admin users listener warning:", error);
+        setIsLoadingUsers(false);
+      });
+
+      // 2. Realtime listener for upgrade requests
+      unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
+        const loadedRequests: UpgradeRequest[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          loadedRequests.push({
+            id: docSnap.id,
+            namaLengkap: data.namaLengkap || '',
+            noWhatsapp: data.noWhatsapp || '',
+            username: data.username || '',
+            timestamp: data.timestamp || Date.now(),
+            status: data.status || 'pending'
+          });
+        });
         loadedRequests.sort((a, b) => a.timestamp - b.timestamp);
         useStore.setState({ upgradeRequests: loadedRequests });
       }, (error) => {
@@ -142,7 +202,7 @@ export default function Admin() {
       if (unsubscribeUsers) unsubscribeUsers();
       if (unsubscribeRequests) unsubscribeRequests();
     };
-  }, [isAdminUnlocked]);
+  }, [isAdminUnlocked, fetchAllData]);
 
   // Sync flashcards real-time from Firestore
   useEffect(() => {
@@ -281,10 +341,11 @@ export default function Admin() {
     showToast(`Username ${oldUsername} berhasil diubah menjadi ${trimmed}.`);
   };
 
-  // Convert usersData object to array
-  const usersList = Object.keys(usersData).map(username => ({
+  // Convert usersData/cloudUsers object to array
+  const activeUsers = Object.keys(cloudUsers).length > 0 ? cloudUsers : usersData;
+  const usersList = Object.keys(activeUsers).map(username => ({
     username,
-    ...usersData[username]
+    ...activeUsers[username]
   }));
 
   const filteredUsers = usersList.filter(u => 
@@ -366,7 +427,19 @@ export default function Admin() {
               <p className="text-slate-500 text-sm mt-0.5">Kelola pengguna, sandi, dan status akses lisensi aplikasi.</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                fetchAllData();
+                showToast("Menyinkronkan data dari cloud server...");
+              }}
+              disabled={isLoadingUsers}
+              className="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3.5 py-2 rounded-2xl border border-indigo-200 text-xs font-semibold transition-all shadow-sm disabled:opacity-60"
+              title="Sinkronkan Ulang Cloud"
+            >
+              <RefreshCw size={15} className={isLoadingUsers ? "animate-spin text-indigo-600" : ""} />
+              {isLoadingUsers ? "Memuat..." : "Refresh Cloud"}
+            </button>
             <button
               onClick={handleAdminLock}
               className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 px-3.5 py-2 rounded-2xl border border-rose-200 text-xs font-semibold transition-all shadow-sm"
@@ -717,7 +790,13 @@ export default function Admin() {
           </div>
 
           <div className="overflow-x-auto">
-            {filteredUsers.length === 0 ? (
+            {isLoadingUsers && usersList.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                <RefreshCw className="mx-auto text-indigo-500 mb-3 animate-spin" size={40} />
+                <p className="font-bold text-sm text-slate-800">Menghubungkan ke Cloud Database...</p>
+                <p className="text-xs text-slate-400 mt-1">Mengambil data pengguna terbaru secara langsung dari server.</p>
+              </div>
+            ) : filteredUsers.length === 0 ? (
               <div className="p-12 text-center text-slate-400">
                 <Users className="mx-auto text-slate-300 mb-3" size={48} />
                 <p className="font-medium text-sm">Tidak menemukan pengguna yang cocok.</p>
