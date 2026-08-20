@@ -60,6 +60,11 @@ export default function Admin() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
+  const showToast = React.useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  }, []);
+
   // Flashcards state
   const [inputTitle, setInputTitle] = useState('');
   const [inputUrl, setInputUrl] = useState('');
@@ -71,8 +76,8 @@ export default function Admin() {
   // Listen to all users and upgrade requests from Firestore when admin is unlocked
   const fetchAllData = React.useCallback(() => {
     setIsLoadingUsers(true);
-    import('../lib/firebase').then(({ db, collection, getDocs, onSnapshot }) => {
-      // 1. Direct one-time fetch for instant display
+    import('../lib/firebase').then(({ db, collection, getDocs, doc, setDoc }) => {
+      // 1. Direct one-time fetch for instant display & auto cloud migration
       getDocs(collection(db, 'global_users')).then(snapshot => {
         const loaded: Record<string, UserData> = {};
         snapshot.forEach(docSnap => {
@@ -98,6 +103,42 @@ export default function Admin() {
             activeSessionId: data.activeSessionId || undefined
           };
         });
+
+        // Check if current device has local accounts that haven't been uploaded to Cloud yet
+        const currentLocal = useStore.getState().usersData || {};
+        let uploadedCount = 0;
+        Object.keys(currentLocal).forEach(uid => {
+          const localUser = currentLocal[uid];
+          if (localUser && !loaded[uid]) {
+            loaded[uid] = localUser;
+            uploadedCount++;
+            // Automatically push this local account to Cloud Firestore
+            setDoc(doc(db, 'global_users', uid), {
+              username: uid,
+              password: localUser.password || '123456',
+              label: localUser.label || 'Demo',
+              signupTime: localUser.signupTime || Date.now(),
+              profile: localUser.profile || null,
+              calendarData: localUser.calendarData || null,
+              schedules: localUser.schedules || {},
+              savedProtas: localUser.savedProtas || {},
+              students: localUser.students || {},
+              attendance: localUser.attendance || [],
+              atpBatches: localUser.atpBatches || {},
+              savedKktps: localUser.savedKktps || [],
+              modulAjarHistories: localUser.modulAjarHistories || [],
+              rombelConfig: localUser.rombelConfig || {},
+              jurnalState: localUser.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+              jurnalEntries: localUser.jurnalEntries || {},
+              generatedModulAtps: localUser.generatedModulAtps || {}
+            }, { merge: true }).catch(e => console.warn("Auto-upload user error:", e));
+          }
+        });
+
+        if (uploadedCount > 0) {
+          showToast(`Berhasil mengunggah ${uploadedCount} akun lokal ke Cloud Server!`);
+        }
+
         setCloudUsers(loaded);
         useStore.setState({ usersData: loaded });
         setIsLoadingUsers(false);
@@ -128,7 +169,7 @@ export default function Admin() {
       console.error(err);
       setIsLoadingUsers(false);
     });
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     if (!isAdminUnlocked) return;
@@ -138,7 +179,7 @@ export default function Admin() {
     let unsubscribeUsers: (() => void) | undefined;
     let unsubscribeRequests: (() => void) | undefined;
 
-    import('../lib/firebase').then(({ db, collection, onSnapshot }) => {
+    import('../lib/firebase').then(({ db, collection, onSnapshot, doc, setDoc }) => {
       // 1. Realtime listener for users
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
         const loaded: Record<string, UserData> = {};
@@ -165,6 +206,19 @@ export default function Admin() {
             activeSessionId: data.activeSessionId || undefined
           };
         });
+
+        // Ensure any existing local users on this device are also retained and synced
+        const currentLocal = useStore.getState().usersData || {};
+        Object.keys(currentLocal).forEach(uid => {
+          if (!loaded[uid] && currentLocal[uid]) {
+            loaded[uid] = currentLocal[uid];
+            setDoc(doc(db, 'global_users', uid), {
+              username: uid,
+              ...currentLocal[uid]
+            }, { merge: true }).catch(e => console.warn(e));
+          }
+        });
+
         setCloudUsers(loaded);
         setIsLoadingUsers(false);
         useStore.setState({ usersData: loaded });
@@ -284,11 +338,6 @@ export default function Admin() {
       showToast(`Flashcard "${flashcardToDelete.title}" berhasil dihapus.`);
       setFlashcardToDelete(null);
     }
-  };
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
   };
 
   const handleResetPassword = (username: string) => {

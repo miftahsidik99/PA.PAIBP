@@ -41,7 +41,7 @@ export default function App() {
     let unsubscribeRequests = () => {};
     let lastWarningTime = 0;
 
-    import('./lib/firebase').then(({ db, collection, onSnapshot }) => {
+    import('./lib/firebase').then(({ db, collection, onSnapshot, doc, setDoc }) => {
       // 1. Listen to all global_users in real time across all devices
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
         const loaded: Record<string, any> = {};
@@ -71,6 +71,19 @@ export default function App() {
         });
 
         const currentState = useStore.getState();
+        const currentLocal = currentState.usersData || {};
+
+        // Merge any existing local accounts that might not yet be in cloud, and upload them
+        Object.keys(currentLocal).forEach(uid => {
+          if (!loaded[uid] && currentLocal[uid]) {
+            loaded[uid] = currentLocal[uid];
+            setDoc(doc(db, 'global_users', uid), {
+              username: uid,
+              ...currentLocal[uid]
+            }, { merge: true }).catch(err => console.warn("App auto-sync user error:", err));
+          }
+        });
+
         useStore.setState({ usersData: loaded });
 
         // If user is currently logged in, check for multi-device session displacement or warning
