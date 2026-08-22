@@ -10,17 +10,18 @@ const GRADES = [1, 2, 3, 4, 5, 6];
 interface ScheduleItem {
   day: string;
   jp: number;
+  jamKe?: string;
 }
 
 export default function Schedule() {
   const { user, profile, schedules: storeSchedules, setSchedules: setStoreSchedules } = useStore();
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem>>({
-    1: { day: '', jp: 0 },
-    2: { day: '', jp: 0 },
-    3: { day: '', jp: 0 },
-    4: { day: '', jp: 0 },
-    5: { day: '', jp: 0 },
-    6: { day: '', jp: 0 },
+    1: { day: 'Senin', jp: 3, jamKe: '3, 4, 5' },
+    2: { day: 'Selasa', jp: 3, jamKe: '2, 3, 4' },
+    3: { day: 'Rabu', jp: 3, jamKe: '2, 3, 4' },
+    4: { day: 'Jumat', jp: 3, jamKe: '4, 5, 6' },
+    5: { day: 'Kamis', jp: 3, jamKe: '2, 3, 4' },
+    6: { day: 'Kamis', jp: 3, jamKe: '6, 7, 8' },
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -203,18 +204,20 @@ export default function Schedule() {
               <th style="text-align: center; width: 50px;">No</th>
               <th>Kelas</th>
               <th>Hari Mengajar</th>
+              <th style="text-align: center;">Jam Ke-</th>
               <th style="text-align: center;">Beban JP</th>
               <th style="text-align: center;">Durasi / Waktu</th>
             </tr>
           </thead>
           <tbody>
             ${GRADES.map((grade, idx) => {
-              const item = schedules[grade] || { day: '-', jp: 0 };
+              const item = schedules[grade] || { day: '-', jp: 0, jamKe: '-' };
               return `
                 <tr>
                   <td style="text-align: center; font-weight: bold; color: #64748b;">${grade}</td>
                   <td style="font-weight: bold; color: #1e293b;">Kelas ${grade}</td>
                   <td>${item.day || '<span style="color: #94a3b8; font-style: italic;">Belum ditentukan</span>'}</td>
+                  <td style="text-align: center; font-weight: bold; color: #334155;">${item.jamKe || '-'}</td>
                   <td style="text-align: center; font-weight: bold; color: #047857;">${item.jp ? `${item.jp} JP` : '-'}</td>
                   <td style="text-align: center; color: #475569;">${item.jp ? `${item.jp * 35} Menit` : '-'}</td>
                 </tr>
@@ -223,7 +226,7 @@ export default function Schedule() {
           </tbody>
           <tfoot>
             <tr style="background-color: #f1f5f9; font-weight: bold;">
-              <td colspan="3" style="text-align: right; padding: 12px 14px;">Total Jam Pelajaran (JP):</td>
+              <td colspan="4" style="text-align: right; padding: 12px 14px;">Total Jam Pelajaran (JP):</td>
               <td style="text-align: center; color: #065f46; padding: 12px 14px;">${totalJpAllCalc} JP</td>
               <td style="text-align: center; color: #065f46; padding: 12px 14px;">${totalJpAllCalc * 35} Menit</td>
             </tr>
@@ -301,6 +304,7 @@ export default function Schedule() {
                 <tr>
                   <th className="p-4 font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Kelas</th>
                   <th className="p-4 font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Hari Mengajar</th>
+                  <th className="p-4 font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Jam Ke-</th>
                   <th className="p-4 font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Beban JP / Minggu</th>
                 </tr>
               </thead>
@@ -310,7 +314,7 @@ export default function Schedule() {
                     <td className="p-4 font-bold text-slate-700">Kelas {grade}</td>
                     <td className="p-4">
                       <select 
-                        value={schedules[grade].day} 
+                        value={schedules[grade]?.day || ''} 
                         onChange={(e) => handleChange(grade, 'day', e.target.value)}
                         className="w-full max-w-xs rounded-xl border-white bg-white/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 border p-2 font-medium"
                       >
@@ -319,8 +323,17 @@ export default function Schedule() {
                       </select>
                     </td>
                     <td className="p-4">
+                      <input 
+                        type="text"
+                        placeholder="Contoh: 3, 4, 5 atau 2, 3, 4"
+                        value={schedules[grade]?.jamKe || ''} 
+                        onChange={(e) => handleChange(grade, 'jamKe', e.target.value)}
+                        className="w-full max-w-xs rounded-xl border-white bg-white/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 border p-2 font-medium text-slate-700"
+                      />
+                    </td>
+                    <td className="p-4">
                       <select 
-                        value={schedules[grade].jp} 
+                        value={schedules[grade]?.jp || 0} 
                         onChange={(e) => handleChange(grade, 'jp', Number(e.target.value))}
                         className="w-full max-w-xs rounded-xl border-white bg-white/60 shadow-sm focus:border-emerald-500 focus:ring-emerald-500 border p-2 font-medium"
                       >
@@ -439,18 +452,20 @@ export default function Schedule() {
                         <th className="p-3.5 border-r border-emerald-700 text-center w-16">No</th>
                         <th className="p-3.5 border-r border-emerald-700">Kelas</th>
                         <th className="p-3.5 border-r border-emerald-700">Hari Mengajar</th>
+                        <th className="p-3.5 border-r border-emerald-700 text-center">Jam Ke-</th>
                         <th className="p-3.5 border-r border-emerald-700 text-center">Beban JP</th>
                         <th className="p-3.5 text-center">Durasi / Waktu</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {GRADES.map((grade, idx) => {
-                        const item = schedules[grade] || { day: '-', jp: 0 };
+                        const item = schedules[grade] || { day: '-', jp: 0, jamKe: '-' };
                         return (
                           <tr key={grade} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
                             <td className="p-3.5 border-r border-slate-200 text-center font-bold text-slate-500">{grade}</td>
                             <td className="p-3.5 border-r border-slate-200 font-bold text-slate-800">Kelas {grade}</td>
                             <td className="p-3.5 border-r border-slate-200 font-medium text-slate-700">{item.day || <span className="text-slate-300 italic">Belum ditentukan</span>}</td>
+                            <td className="p-3.5 border-r border-slate-200 text-center font-semibold text-slate-700">{item.jamKe || '-'}</td>
                             <td className="p-3.5 border-r border-slate-200 text-center font-bold text-emerald-700">{item.jp ? `${item.jp} JP` : '-'}</td>
                             <td className="p-3.5 text-center font-medium text-slate-600">{item.jp ? `${item.jp * 35} Menit` : '-'}</td>
                           </tr>
@@ -459,7 +474,7 @@ export default function Schedule() {
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-100 font-bold text-slate-800 border-t-2 border-slate-300">
-                        <td colSpan={3} className="p-3.5 text-right border-r border-slate-200">Total Jam Pelajaran (JP):</td>
+                        <td colSpan={4} className="p-3.5 text-right border-r border-slate-200">Total Jam Pelajaran (JP):</td>
                         <td className="p-3.5 text-center border-r border-slate-200 text-emerald-800">{totalJpAll} JP</td>
                         <td className="p-3.5 text-center text-emerald-800">{totalJpAll * 35} Menit</td>
                       </tr>
