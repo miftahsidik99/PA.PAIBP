@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/Layout';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, AttendanceData, Student } from '../store/useStore';
-import { Download, FileText, Users, Calendar, CheckCircle2, UserPlus, Trash2, RefreshCw, FileDown, Save } from 'lucide-react';
+import { Download, FileText, Users, Calendar, CheckCircle2, UserPlus, Trash2, RefreshCw, FileDown, Save, CheckCheck } from 'lucide-react';
 import { format, eachDayOfInterval, getDay, parse, startOfMonth, endOfMonth, isSameMonth, addMonths, subMonths } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { 
@@ -124,22 +124,44 @@ export default function Presensi() {
   };
 
   const handleCheckAllHadir = (date: string) => {
-    if (!activeAttendance) return;
+    if (!activeAttendance || students.length === 0) return;
     
     const newRecords = { ...activeAttendance.records };
     const dateRecords = { ...(newRecords[date] || {}) };
     
     students.forEach(s => {
-      // Only set to Hadir if not already set to something else
-      if (!dateRecords[s.id]) {
-        dateRecords[s.id] = 'H';
-      }
+      // Set all students to Hadir for this date
+      dateRecords[s.id] = 'H';
     });
     
     newRecords[date] = dateRecords;
     const newActive = { ...activeAttendance, records: newRecords };
     setActiveAttendance(newActive);
     setHasChanges(true);
+    const dateFormatted = format(parse(date, 'yyyy-MM-dd', new Date()), 'dd MMMM yyyy', { locale: id });
+    setShowToast(`Semua siswa ditandai Hadir pada tanggal ${dateFormatted}!`);
+  };
+
+  const handleCheckAllHadirAllMonth = () => {
+    if (!activeAttendance || students.length === 0 || effectiveDates.length === 0) {
+      alert("Tidak ada data siswa atau hari efektif pada bulan ini.");
+      return;
+    }
+    
+    const newRecords = { ...activeAttendance.records };
+    
+    effectiveDates.forEach(d => {
+      const dateRecords = { ...(newRecords[d.date] || {}) };
+      students.forEach(s => {
+        dateRecords[s.id] = 'H';
+      });
+      newRecords[d.date] = dateRecords;
+    });
+    
+    const newActive = { ...activeAttendance, records: newRecords };
+    setActiveAttendance(newActive);
+    setHasChanges(true);
+    setShowToast(`Berhasil mencentang Hadir semua siswa untuk ${effectiveDates.length} hari efektif bulan ini!`);
   };
 
   const handleClearAttendance = () => {
@@ -608,7 +630,16 @@ export default function Presensi() {
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button 
+              onClick={handleCheckAllHadirAllMonth}
+              disabled={students.length === 0 || effectiveDates.length === 0}
+              className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-2xl font-bold transition-all text-xs shadow-md shadow-emerald-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Centang otomatis semua siswa Hadir (H) untuk seluruh hari efektif bulan ini"
+            >
+              <CheckCheck size={16} />
+              Centang Semua Hadir
+            </button>
             <button 
               onClick={() => handlePullData('siswa')}
               className="flex items-center gap-2 bg-white/40 backdrop-blur-md px-4 py-2 rounded-2xl font-bold border border-white/60 hover:bg-white/60 transition-all text-xs text-slate-600 shadow-sm"
@@ -682,14 +713,16 @@ export default function Presensi() {
                     <th className="p-4 font-bold text-slate-500 uppercase tracking-widest w-20 text-center border-r border-slate-200 bg-slate-50/80">L/P</th>
                     <th className="p-4 font-bold text-slate-500 uppercase tracking-widest w-20 text-center border-r border-slate-200 bg-slate-50/80">NISN</th>
                     {effectiveDates.map(d => (
-                      <th key={d.date} className="p-2 text-center min-w-[80px] border-r border-slate-200 group relative">
+                      <th key={d.date} className="p-2 text-center min-w-[85px] border-r border-slate-200 group">
                         <div className="font-bold text-emerald-700">{format(parse(d.date, 'yyyy-MM-dd', new Date()), 'dd')}</div>
                         <div className="text-[9px] text-slate-400 font-medium">{format(parse(d.date, 'yyyy-MM-dd', new Date()), 'EEE', { locale: id })}</div>
                         <button 
+                          type="button"
                           onClick={() => handleCheckAllHadir(d.date)}
-                          className="mt-1 text-[9px] font-bold text-emerald-600 hover:text-emerald-800 flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="mt-1.5 text-[9px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 px-2 py-0.5 rounded-lg flex items-center justify-center gap-1 mx-auto transition-all shadow-xs active:scale-95"
+                          title={`Centang semua siswa Hadir pada tanggal ${format(parse(d.date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy')}`}
                         >
-                          <CheckCircle2 size={10} /> Semua H
+                          <CheckCheck size={11} className="text-emerald-600" /> Semua H
                         </button>
                       </th>
                     ))}
