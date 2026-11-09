@@ -147,6 +147,7 @@ export interface UserData {
   attendance?: AttendanceData[];
   modulAjarHistories?: ModulAjarHistoryItem[];
   rombelConfig?: Record<number, { jumlahRombel: number; labels: string[] }>;
+  lockedProtas?: Record<number, boolean>;
   jurnalState?: JurnalStateData;
   jurnalEntries?: Record<number, JurnalEntry[]>;
   password?: string;
@@ -168,6 +169,7 @@ interface AppState {
   calendarData: CalendarData | null;
   schedules: Record<number, any>;
   savedProtas: Record<number, any[]>;
+  lockedProtas: Record<number, boolean>;
   students: Record<number, Student[]>;
   attendance: AttendanceData[];
   atpBatches: Record<number, ATPBatch[]>;
@@ -193,6 +195,8 @@ interface AppState {
   setCalendarData: (data: CalendarData | null) => void;
   setSchedules: (schedules: Record<number, any>) => void;
   setSavedProtas: (protas: Record<number, any[]>) => void;
+  setLockedProtas: (lockedProtas: Record<number, boolean>) => void;
+  toggleLockProta: (grade: number) => void;
   setStudents: (students: Record<number, Student[]>) => void;
   setAttendance: (attendance: AttendanceData[]) => void;
   generatedModulAtps: Record<number, string[]>;
@@ -227,6 +231,7 @@ const initialUserData: UserData = {
   calendarData: null,
   schedules: {},
   savedProtas: {},
+  lockedProtas: {},
   generatedModulAtps: {},
   atpBatches: {},
   savedKktps: [],
@@ -255,6 +260,7 @@ export const useStore = create<AppState>()(
       calendarData: null,
       schedules: {},
       savedProtas: {},
+      lockedProtas: {},
       students: {},
       attendance: [],
       generatedModulAtps: {},
@@ -534,6 +540,7 @@ export const useStore = create<AppState>()(
           calendarData: userData.calendarData,
           schedules: userData.schedules,
           savedProtas: userData.savedProtas,
+          lockedProtas: userData.lockedProtas || {},
           students: userData.students || {},
           attendance: userData.attendance || [],
           generatedModulAtps: userData.generatedModulAtps || {},
@@ -573,6 +580,7 @@ export const useStore = create<AppState>()(
           calendarData: null,
           schedules: {},
           savedProtas: {},
+          lockedProtas: {},
           students: {},
           attendance: [],
           generatedModulAtps: {},
@@ -708,6 +716,37 @@ export const useStore = create<AppState>()(
         state.syncUserDataToCloud();
       },
 
+      setLockedProtas: (lockedProtas) => {
+        const state = get();
+        if (!state.currentUser) return;
+        set({
+          lockedProtas,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], lockedProtas }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      toggleLockProta: (grade) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const currentLocked = state.lockedProtas || {};
+        const updatedLocked = {
+          ...currentLocked,
+          [grade]: !currentLocked[grade]
+        };
+        set({
+          lockedProtas: updatedLocked,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], lockedProtas: updatedLocked }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
       addModulAjarHistory: (item) => {
         const state = get();
         if (!state.currentUser) return;
@@ -829,6 +868,7 @@ export const useStore = create<AppState>()(
             calendarData: currentData.calendarData || null,
             schedules: currentData.schedules || {},
             savedProtas: currentData.savedProtas || {},
+            lockedProtas: currentData.lockedProtas || {},
             students: currentData.students || {},
             attendance: currentData.attendance || [],
             atpBatches: currentData.atpBatches || {},
@@ -864,6 +904,7 @@ export const useStore = create<AppState>()(
               calendarData: cloudData.calendarData || existingLocal.calendarData,
               schedules: cloudData.schedules || existingLocal.schedules,
               savedProtas: cloudData.savedProtas || existingLocal.savedProtas,
+              lockedProtas: cloudData.lockedProtas || existingLocal.lockedProtas || {},
               students: cloudData.students || existingLocal.students || {},
               attendance: cloudData.attendance || existingLocal.attendance || [],
               atpBatches: cloudData.atpBatches || existingLocal.atpBatches || {},

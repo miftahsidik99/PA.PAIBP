@@ -138,6 +138,7 @@ export default function App() {
     const pressedKeys = new Set<string>();
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.key) return;
       pressedKeys.add(e.key.toLowerCase());
       
       const hasCtrl = e.ctrlKey || pressedKeys.has('control');
@@ -152,6 +153,7 @@ export default function App() {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (!e.key) return;
       pressedKeys.delete(e.key.toLowerCase());
     };
 

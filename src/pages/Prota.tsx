@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import { motion } from 'motion/react';
 import { useStore } from '../store/useStore';
-import { Download, Save, BrainCircuit } from 'lucide-react';
+import { Download, Save, BrainCircuit, Lock, Unlock, CheckCircle2 } from 'lucide-react';
 import { cpData } from '../data/cp';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, AlignmentType, PageOrientation, BorderStyle, VerticalAlign } from 'docx';
 import { saveAs } from 'file-saver';
@@ -11,7 +11,17 @@ import { id } from 'date-fns/locale';
 import { generateAtpBatchClient } from '../lib/geminiClient';
 
 export default function Prota() {
-  const { user, profile, calendarData, geminiApiKey, schedules: storeSchedules, savedProtas: storeProtas, setSavedProtas: setStoreProtas } = useStore();
+  const { 
+    user, 
+    profile, 
+    calendarData, 
+    geminiApiKey, 
+    schedules: storeSchedules, 
+    savedProtas: storeProtas, 
+    setSavedProtas: setStoreProtas,
+    lockedProtas = {},
+    toggleLockProta
+  } = useStore();
   const [schedules, setSchedules] = useState<Record<number, any>>({});
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -47,6 +57,10 @@ export default function Prota() {
   };
 
   const handleGenerate = async () => {
+    if (lockedProtas[selectedGrade]) {
+      alert(`Program Tahunan Kelas ${selectedGrade} sedang dikunci. Silakan klik tombol 'Buka Kunci' jika ingin membuat ulang.`);
+      return;
+    }
     const gradeCp = cpData[selectedGrade as keyof typeof cpData];
     if (!gradeCp) return;
     
@@ -353,6 +367,24 @@ export default function Prota() {
               {saving ? 'Menyimpan...' : 'Simpan'}
             </button>
             <button 
+              onClick={() => {
+                if (protaData.length === 0) {
+                  alert("Hasilkan atau simpan Prota terlebih dahulu sebelum mengunci.");
+                  return;
+                }
+                toggleLockProta(selectedGrade);
+              }}
+              disabled={protaData.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold transition-all disabled:opacity-50 text-sm ${
+                lockedProtas[selectedGrade]
+                  ? 'bg-amber-600 text-white hover:bg-amber-700 shadow-md shadow-amber-200'
+                  : 'bg-emerald-700 text-white hover:bg-emerald-800 shadow-md shadow-emerald-200'
+              }`}
+            >
+              {lockedProtas[selectedGrade] ? <Lock size={18} /> : <Unlock size={18} />}
+              {lockedProtas[selectedGrade] ? 'Prota Terkunci' : 'Kunci Prota'}
+            </button>
+            <button 
               onClick={generateDoc}
               disabled={protaData.length === 0}
               className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-2xl font-bold shadow-lg shadow-slate-200 hover:bg-slate-900 transition-colors disabled:opacity-50 text-sm"
@@ -362,6 +394,23 @@ export default function Prota() {
             </button>
           </div>
         </div>
+
+        {/* Lock Status Banner */}
+        {lockedProtas[selectedGrade] && (
+          <div className="mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-2xl shadow-sm flex items-center justify-between gap-3 text-xs md:text-sm font-semibold">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 size={18} className="text-emerald-600 flex-shrink-0" />
+              <span>Program Tahunan Kelas {selectedGrade} telah <strong>Tersimpan & Terkunci</strong>. Data otomatis siap digunakan secara akurat pada <strong>Jurnal Mengajar Guru</strong>.</span>
+            </div>
+            <button
+              onClick={() => toggleLockProta(selectedGrade)}
+              className="text-xs bg-white text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-300 hover:bg-emerald-100 transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
+            >
+              <Unlock size={14} />
+              Buka Kunci
+            </button>
+          </div>
+        )}
 
         <div className="mb-6 flex gap-2">
           {[1,2,3,4,5,6].map(grade => (
