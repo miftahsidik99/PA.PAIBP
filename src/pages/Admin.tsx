@@ -75,9 +75,11 @@ export default function Admin() {
   const [flashcardToDelete, setFlashcardToDelete] = useState<{ id: string; title: string } | null>(null);
 
   // Listen to all users and upgrade requests from Firestore when admin is unlocked
+  const pushedLocalUidsRef = React.useRef<Set<string>>(new Set());
+
   const fetchAllData = React.useCallback(() => {
     setIsLoadingUsers(true);
-    import('../lib/firebase').then(({ db, collection, getDocs, doc, setDoc }) => {
+    import('../lib/firebase').then(({ db, collection, getDocs, doc, safeSetDoc, isFirestoreQuotaError, markFirestoreQuotaExceeded }) => {
       // 1. Direct one-time fetch for instant display & auto cloud migration
       getDocs(collection(db, 'global_users')).then(snapshot => {
         const loaded: Record<string, UserData> = {};
@@ -89,6 +91,7 @@ export default function Admin() {
             calendarData: data.calendarData || null,
             schedules: data.schedules || {},
             savedProtas: data.savedProtas || {},
+            lockedProtas: data.lockedProtas || {},
             generatedModulAtps: data.generatedModulAtps || {},
             atpBatches: data.atpBatches || {},
             savedKktps: data.savedKktps || [],
@@ -98,6 +101,9 @@ export default function Admin() {
             rombelConfig: data.rombelConfig || {},
             jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
             jurnalEntries: data.jurnalEntries || {},
+            sumatifConfig: data.sumatifConfig,
+            isSumatifConfigLocked: Boolean(data.isSumatifConfigLocked),
+            savedSumatifs: data.savedSumatifs || [],
             password: data.password || '123456',
             label: data.label || 'Demo',
             signupTime: data.signupTime || Date.now(),
@@ -112,38 +118,41 @@ export default function Admin() {
           const localUser = currentLocal[uid];
           if (localUser && !loaded[uid]) {
             loaded[uid] = localUser;
-            uploadedCount++;
-            // Automatically push this local account to Cloud Firestore
-            setDoc(doc(db, 'global_users', uid), {
-              username: uid,
-              password: localUser.password || '123456',
-              label: localUser.label || 'Demo',
-              signupTime: localUser.signupTime || Date.now(),
-              profile: localUser.profile || null,
-              calendarData: localUser.calendarData || null,
-              schedules: localUser.schedules || {},
-              savedProtas: localUser.savedProtas || {},
-              students: localUser.students || {},
-              attendance: localUser.attendance || [],
-              atpBatches: localUser.atpBatches || {},
-              savedKktps: localUser.savedKktps || [],
-              modulAjarHistories: localUser.modulAjarHistories || [],
-              rombelConfig: localUser.rombelConfig || {},
-              jurnalState: localUser.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
-              jurnalEntries: localUser.jurnalEntries || {},
-              generatedModulAtps: localUser.generatedModulAtps || {}
-            }, { merge: true }).catch(e => console.warn("Auto-upload user error:", e));
+            if (!pushedLocalUidsRef.current.has(uid)) {
+              pushedLocalUidsRef.current.add(uid);
+              uploadedCount++;
+              safeSetDoc(doc(db, 'global_users', uid), {
+                username: uid,
+                password: localUser.password || '123456',
+                label: localUser.label || 'Demo',
+                signupTime: localUser.signupTime || Date.now(),
+                profile: localUser.profile || null,
+                calendarData: localUser.calendarData || null,
+                schedules: localUser.schedules || {},
+                savedProtas: localUser.savedProtas || {},
+                students: localUser.students || {},
+                attendance: localUser.attendance || [],
+                atpBatches: localUser.atpBatches || {},
+                savedKktps: localUser.savedKktps || [],
+                modulAjarHistories: localUser.modulAjarHistories || [],
+                rombelConfig: localUser.rombelConfig || {},
+                jurnalState: localUser.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
+                jurnalEntries: localUser.jurnalEntries || {},
+                generatedModulAtps: localUser.generatedModulAtps || {}
+              }, { merge: true });
+            }
           }
         });
 
         if (uploadedCount > 0) {
-          showToast(`Berhasil mengunggah ${uploadedCount} akun lokal ke Cloud Server!`);
+          showToast(`Mengsinkronkan ${uploadedCount} akun lokal ke Cloud Server!`);
         }
 
         setCloudUsers(loaded);
         useStore.setState({ usersData: loaded });
         setIsLoadingUsers(false);
       }).catch(err => {
+        if (isFirestoreQuotaError(err)) markFirestoreQuotaExceeded();
         console.warn("getDocs users warning:", err);
         setIsLoadingUsers(false);
       });
@@ -180,8 +189,8 @@ export default function Admin() {
     let unsubscribeUsers: (() => void) | undefined;
     let unsubscribeRequests: (() => void) | undefined;
 
-    import('../lib/firebase').then(({ db, collection, onSnapshot, doc, setDoc }) => {
-      // 1. Realtime listener for users
+    import('../lib/firebase').then(({ db, collection, onSnapshot, isFirestoreQuotaError, markFirestoreQuotaExceeded }) => {
+      // 1. Realtime listener for users (read-only inside snapshot to avoid write loops)
       unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
         const loaded: Record<string, UserData> = {};
         snapshot.forEach(docSnap => {
@@ -192,6 +201,7 @@ export default function Admin() {
             calendarData: data.calendarData || null,
             schedules: data.schedules || {},
             savedProtas: data.savedProtas || {},
+            lockedProtas: data.lockedProtas || {},
             generatedModulAtps: data.generatedModulAtps || {},
             atpBatches: data.atpBatches || {},
             savedKktps: data.savedKktps || [],
@@ -201,6 +211,9 @@ export default function Admin() {
             rombelConfig: data.rombelConfig || {},
             jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
             jurnalEntries: data.jurnalEntries || {},
+            sumatifConfig: data.sumatifConfig,
+            isSumatifConfigLocked: Boolean(data.isSumatifConfigLocked),
+            savedSumatifs: data.savedSumatifs || [],
             password: data.password || '123456',
             label: data.label || 'Demo',
             signupTime: data.signupTime || Date.now(),
@@ -208,15 +221,11 @@ export default function Admin() {
           };
         });
 
-        // Ensure any existing local users on this device are also retained and synced
+        // Retain local accounts in memory without firing repeated writes inside onSnapshot
         const currentLocal = useStore.getState().usersData || {};
         Object.keys(currentLocal).forEach(uid => {
           if (!loaded[uid] && currentLocal[uid]) {
             loaded[uid] = currentLocal[uid];
-            setDoc(doc(db, 'global_users', uid), {
-              username: uid,
-              ...currentLocal[uid]
-            }, { merge: true }).catch(e => console.warn(e));
           }
         });
 
@@ -224,6 +233,7 @@ export default function Admin() {
         setIsLoadingUsers(false);
         useStore.setState({ usersData: loaded });
       }, (error) => {
+        if (isFirestoreQuotaError(error)) markFirestoreQuotaExceeded();
         console.warn("Admin users listener warning:", error);
         setIsLoadingUsers(false);
       });

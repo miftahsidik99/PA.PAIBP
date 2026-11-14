@@ -379,9 +379,17 @@ export default function Jurnal() {
 
   // Sync pengawas info to store when changed
   useEffect(() => {
+    const nextBulan = `${selectedMonth} ${selectedYear}`;
+    if (
+      jurnalState?.bulan === nextBulan &&
+      (jurnalState?.pengawasNama || '') === pengawasNama &&
+      (jurnalState?.pengawasNip || '') === pengawasNip
+    ) {
+      return;
+    }
     setJurnalState({
       ...jurnalState,
-      bulan: `${selectedMonth} ${selectedYear}`,
+      bulan: nextBulan,
       pengawasNama,
       pengawasNip,
       items: jurnalState?.items || {}

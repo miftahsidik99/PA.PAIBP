@@ -126,6 +126,122 @@ export interface JurnalEntry {
   catatan: string;
 }
 
+export type SumatifType = 'HARIAN' | 'ASAS' | 'ASAT' | 'ASAJ';
+export type SumatifOptionLayout = 'horizontal' | 'vertical';
+export type SumatifFontFamily = 'Times New Roman' | 'Arial' | 'Calibri' | 'Book Antiqua' | 'Georgia';
+
+export interface SumatifConfig {
+  jenisSumatif: SumatifType;
+  grade: number;
+  selectedAtpIndices: number[];
+  fontFamily: SumatifFontFamily;
+  fontSize: number;
+  optionLayout: SumatifOptionLayout;
+  jumlahPg: number;
+  jumlahIsian: number;
+  jumlahUraian: number;
+  komposisiLots: number;
+  komposisiMots: number;
+  komposisiHots: number;
+  includeIllustrations: boolean;
+  waktuMenit: number;
+  paperSize: 'A4' | 'F4';
+  tanggalPelaksanaan?: string;
+}
+
+export interface SumatifKisiItem {
+  no: number;
+  elemen: string;
+  cp: string;
+  tpAtp: string;
+  materiPokok: string;
+  indikatorSoal: string;
+  levelKognitif: string;
+  kategoriKesulitan: 'LOTS' | 'MOTS' | 'HOTS';
+  bentukSoal: 'Pilihan Ganda' | 'Isian Singkat' | 'Uraian';
+  nomorSoal: number;
+}
+
+export interface SumatifPgItem {
+  nomor: number;
+  elemen: string;
+  kategoriKesulitan: 'LOTS' | 'MOTS' | 'HOTS';
+  levelKognitif: string;
+  stimulus?: string;
+  pertanyaan: string;
+  teksArab?: string;
+  svgIllustration?: string;
+  illustrationCaption?: string;
+  opsi: {
+    A: string;
+    B: string;
+    C: string;
+    D: string;
+  };
+  kunciJawaban: 'A' | 'B' | 'C' | 'D';
+  pembahasan: string;
+}
+
+export interface SumatifIsianItem {
+  nomor: number;
+  elemen: string;
+  kategoriKesulitan: 'LOTS' | 'MOTS' | 'HOTS';
+  levelKognitif: string;
+  stimulus?: string;
+  pertanyaan: string;
+  teksArab?: string;
+  svgIllustration?: string;
+  illustrationCaption?: string;
+  kunciJawaban: string;
+  skorMaksimal: number;
+  pedomanPenskoran: string;
+}
+
+export interface SumatifUraianItem {
+  nomor: number;
+  elemen: string;
+  kategoriKesulitan: 'LOTS' | 'MOTS' | 'HOTS';
+  levelKognitif: string;
+  stimulus?: string;
+  pertanyaan: string;
+  teksArab?: string;
+  svgIllustration?: string;
+  illustrationCaption?: string;
+  kunciJawaban: string;
+  skorMaksimal: number;
+  rubrikPenskoran: {
+    skor: number;
+    kriteria: string;
+  }[];
+}
+
+export interface SumatifDocument {
+  id: string;
+  createdAt: number;
+  grade: number;
+  jenisSumatif: SumatifType;
+  semesterLabel: string;
+  judulAsesmen: string;
+  configSnapshot: SumatifConfig;
+  kisiKisi: SumatifKisiItem[];
+  soalPg: SumatifPgItem[];
+  soalIsian: SumatifIsianItem[];
+  soalUraian: SumatifUraianItem[];
+  rubrikUmum: {
+    bobotPgPerSoal: number;
+    skorMaksPg: number;
+    skorMaksIsian: number;
+    skorMaksUraian: number;
+    totalSkorMaksimal: number;
+    rumusNilaiAkhir: string;
+    intervalKktp: {
+      rentang: string;
+      predikat: string;
+      tindakLanjut: string;
+    }[];
+  };
+}
+
 export interface UpgradeRequest {
   id: string;
   namaLengkap: string;
@@ -150,6 +266,9 @@ export interface UserData {
   lockedProtas?: Record<number, boolean>;
   jurnalState?: JurnalStateData;
   jurnalEntries?: Record<number, JurnalEntry[]>;
+  sumatifConfig?: SumatifConfig;
+  isSumatifConfigLocked?: boolean;
+  savedSumatifs?: SumatifDocument[];
   password?: string;
   label?: 'Full Time' | 'Demo';
   signupTime?: number;
@@ -178,6 +297,9 @@ interface AppState {
   rombelConfig: Record<number, { jumlahRombel: number; labels: string[] }>;
   jurnalState: JurnalStateData;
   jurnalEntries: Record<number, JurnalEntry[]>;
+  sumatifConfig: SumatifConfig;
+  isSumatifConfigLocked: boolean;
+  savedSumatifs: SumatifDocument[];
 
   // Actions
   login: (username: string) => void;
@@ -211,6 +333,11 @@ interface AppState {
   setRombelConfig: (grade: number, config: { jumlahRombel: number; labels: string[] }) => void;
   setJurnalState: (state: JurnalStateData) => void;
   setJurnalEntries: (entries: Record<number, JurnalEntry[]>) => void;
+  setSumatifConfig: (config: SumatifConfig) => void;
+  toggleLockSumatifConfig: () => void;
+  addSavedSumatif: (doc: SumatifDocument) => void;
+  updateSavedSumatif: (doc: SumatifDocument) => void;
+  deleteSavedSumatif: (id: string) => void;
 
   importData: (jsonData: string) => void;
   syncUserDataToCloud: () => void;
@@ -225,6 +352,25 @@ interface AppState {
   deleteFlashcard: (id: string) => void;
   setFlashcards: (flashcards: FlashcardLink[]) => void;
 }
+
+export const DEFAULT_SUMATIF_CONFIG: SumatifConfig = {
+  jenisSumatif: 'ASAS',
+  grade: 1,
+  selectedAtpIndices: [],
+  fontFamily: 'Times New Roman',
+  fontSize: 12,
+  optionLayout: 'vertical',
+  jumlahPg: 15,
+  jumlahIsian: 5,
+  jumlahUraian: 5,
+  komposisiLots: 30,
+  komposisiMots: 40,
+  komposisiHots: 30,
+  includeIllustrations: true,
+  waktuMenit: 90,
+  paperSize: 'A4',
+  tanggalPelaksanaan: ''
+};
 
 const initialUserData: UserData = {
   profile: null,
@@ -245,8 +391,14 @@ const initialUserData: UserData = {
     pengawasNip: '',
     items: {}
   },
-  jurnalEntries: {}
+  jurnalEntries: {},
+  sumatifConfig: DEFAULT_SUMATIF_CONFIG,
+  isSumatifConfigLocked: false,
+  savedSumatifs: []
 };
+
+const syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const lastSyncedPayloadByUser: Record<string, string> = {};
 
 export const useStore = create<AppState>()(
   persist(
@@ -275,6 +427,9 @@ export const useStore = create<AppState>()(
         items: {}
       },
       jurnalEntries: {},
+      sumatifConfig: DEFAULT_SUMATIF_CONFIG,
+      isSumatifConfigLocked: false,
+      savedSumatifs: [],
       geminiApiKey: null,
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
 
@@ -291,8 +446,8 @@ export const useStore = create<AppState>()(
         const updated = [newCard, ...(state.flashcards || [])];
         set({ flashcards: updated });
 
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
         }).catch(err => console.error(err));
       },
 
@@ -301,8 +456,8 @@ export const useStore = create<AppState>()(
         const updated = (state.flashcards || []).map(f => f.id === id ? { ...f, title: title.trim(), url: url.trim() } : f);
         set({ flashcards: updated });
 
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
         }).catch(err => console.error(err));
       },
 
@@ -311,8 +466,8 @@ export const useStore = create<AppState>()(
         const updated = (state.flashcards || []).filter(f => f.id !== id);
         set({ flashcards: updated });
 
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'app_config', 'flashcards'), { items: updated });
         }).catch(err => console.error(err));
       },
 
@@ -340,8 +495,8 @@ export const useStore = create<AppState>()(
         });
         
         // Sync to Firestore
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'global_users', normalized), {
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'global_users', normalized), {
             username: normalized,
             password,
             label: 'Demo',
@@ -394,11 +549,11 @@ export const useStore = create<AppState>()(
           }
         });
         
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'global_users', normalized), {
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'global_users', normalized), {
             username: normalized,
             password: newPassword
-          }, { merge: true }).catch(e => console.error("Error resetting password in Firestore:", e));
+          }, { merge: true });
         }).catch(e => console.error(e));
       },
 
@@ -419,12 +574,12 @@ export const useStore = create<AppState>()(
           }
         });
         
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'global_users', normalized), {
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'global_users', normalized), {
             username: normalized,
             label,
             signupTime: newSignupTime
-          }, { merge: true }).catch(e => console.error("Error setting label in Firestore:", e));
+          }, { merge: true });
         }).catch(e => console.error(e));
       },
 
@@ -435,8 +590,8 @@ export const useStore = create<AppState>()(
         delete newUsersData[normalized];
         set({ usersData: newUsersData });
         
-        import('../lib/firebase').then(({ db, doc, deleteDoc }) => {
-          deleteDoc(doc(db, 'global_users', normalized)).catch(e => console.error("Error deleting user from Firestore:", e));
+        import('../lib/firebase').then(({ db, doc, safeDeleteDoc }) => {
+          safeDeleteDoc(doc(db, 'global_users', normalized));
         }).catch(e => console.error(e));
       },
 
@@ -452,13 +607,14 @@ export const useStore = create<AppState>()(
           delete newUsersData[normalizedOld];
           set({ usersData: newUsersData });
           
-          import('../lib/firebase').then(({ db, doc, setDoc, deleteDoc }) => {
-            setDoc(doc(db, 'global_users', normalizedNew), {
+          import('../lib/firebase').then(async ({ db, doc, safeSetDoc, safeDeleteDoc }) => {
+            const ok = await safeSetDoc(doc(db, 'global_users', normalizedNew), {
               ...userData,
               username: normalizedNew
-            }, { merge: true }).then(() => {
-              deleteDoc(doc(db, 'global_users', normalizedOld)).catch(e => console.error(e));
-            }).catch(e => console.error(e));
+            }, { merge: true });
+            if (ok) {
+              await safeDeleteDoc(doc(db, 'global_users', normalizedOld));
+            }
           }).catch(e => console.error(e));
         }
       },
@@ -478,8 +634,8 @@ export const useStore = create<AppState>()(
           upgradeRequests: [...requests, newRequest]
         });
         
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'upgrade_requests', newRequest.id), newRequest, { merge: true }).catch(e => console.error(e));
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'upgrade_requests', newRequest.id), newRequest, { merge: true });
         });
       },
 
@@ -503,9 +659,9 @@ export const useStore = create<AppState>()(
             usersData: updatedUsersData
           });
           
-          import('../lib/firebase').then(({ db, doc, setDoc }) => {
-            setDoc(doc(db, 'upgrade_requests', requestId), { status: 'approved' }, { merge: true }).catch(e => console.error(e));
-            setDoc(doc(db, 'global_users', normalized), { label: 'Full Time' }, { merge: true }).catch(e => console.error(e));
+          import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+            safeSetDoc(doc(db, 'upgrade_requests', requestId), { status: 'approved' }, { merge: true });
+            safeSetDoc(doc(db, 'global_users', normalized), { label: 'Full Time' }, { merge: true });
           }).catch(e => console.error(e));
         }
       },
@@ -550,26 +706,34 @@ export const useStore = create<AppState>()(
           rombelConfig: userData.rombelConfig || {},
           jurnalState: userData.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
           jurnalEntries: userData.jurnalEntries || {},
+          sumatifConfig: userData.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
+          isSumatifConfigLocked: Boolean(userData.isSumatifConfigLocked),
+          savedSumatifs: userData.savedSumatifs || [],
           usersData: {
             ...state.usersData,
             [normalized]: userData
           }
         });
         
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'global_users', normalized), {
+        import('../lib/firebase').then(({ db, doc, safeSetDoc }) => {
+          safeSetDoc(doc(db, 'global_users', normalized), {
             activeSessionId: sessionId
-          }, { merge: true }).catch(e => console.error(e));
+          }, { merge: true });
         });
       },
 
       logout: () => {
         const state = get();
         if (state.currentUser) {
-          import('../lib/firebase').then(({ db, doc, updateDoc }) => {
-            updateDoc(doc(db, 'global_users', state.currentUser!), {
+          const prevUser = state.currentUser;
+          if (syncTimers[prevUser]) {
+            clearTimeout(syncTimers[prevUser]);
+            delete syncTimers[prevUser];
+          }
+          import('../lib/firebase').then(({ db, doc, safeUpdateDoc }) => {
+            safeUpdateDoc(doc(db, 'global_users', prevUser), {
               activeSessionId: null
-            }).catch(e => console.error(e));
+            });
           });
         }
         set({
@@ -590,6 +754,9 @@ export const useStore = create<AppState>()(
           rombelConfig: {},
           jurnalState: { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
           jurnalEntries: {},
+          sumatifConfig: DEFAULT_SUMATIF_CONFIG,
+          isSumatifConfigLocked: false,
+          savedSumatifs: [],
         });
       },
 
@@ -841,6 +1008,75 @@ export const useStore = create<AppState>()(
         state.syncUserDataToCloud();
       },
 
+      setSumatifConfig: (sumatifConfig) => {
+        const state = get();
+        if (!state.currentUser) return;
+        set({
+          sumatifConfig,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], sumatifConfig }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      toggleLockSumatifConfig: () => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextLocked = !state.isSumatifConfigLocked;
+        set({
+          isSumatifConfigLocked: nextLocked,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], isSumatifConfigLocked: nextLocked }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      addSavedSumatif: (doc) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextList = [doc, ...(state.savedSumatifs || [])];
+        set({
+          savedSumatifs: nextList,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], savedSumatifs: nextList }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      updateSavedSumatif: (doc) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextList = (state.savedSumatifs || []).map(item => item.id === doc.id ? doc : item);
+        set({
+          savedSumatifs: nextList,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], savedSumatifs: nextList }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      deleteSavedSumatif: (id) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextList = (state.savedSumatifs || []).filter(item => item.id !== id);
+        set({
+          savedSumatifs: nextList,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], savedSumatifs: nextList }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
       setAttendance: (attendance) => {
         const state = get();
         if (!state.currentUser) return;
@@ -858,11 +1094,18 @@ export const useStore = create<AppState>()(
         const state = get();
         const username = state.currentUser;
         if (!username) return;
-        const currentData = state.usersData[username];
-        if (!currentData) return;
 
-        import('../lib/firebase').then(({ db, doc, setDoc }) => {
-          setDoc(doc(db, 'global_users', username), {
+        if (syncTimers[username]) {
+          clearTimeout(syncTimers[username]);
+        }
+
+        syncTimers[username] = setTimeout(() => {
+          const latestState = get();
+          if (latestState.currentUser !== username) return;
+          const currentData = latestState.usersData[username];
+          if (!currentData) return;
+
+          const payload = {
             username,
             profile: currentData.profile || null,
             calendarData: currentData.calendarData || null,
@@ -877,12 +1120,26 @@ export const useStore = create<AppState>()(
             rombelConfig: currentData.rombelConfig || {},
             jurnalState: currentData.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
             jurnalEntries: currentData.jurnalEntries || {},
+            sumatifConfig: currentData.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
+            isSumatifConfigLocked: Boolean(currentData.isSumatifConfigLocked),
+            savedSumatifs: currentData.savedSumatifs || [],
             generatedModulAtps: currentData.generatedModulAtps || {},
             activeSessionId: currentData.activeSessionId || null
-          }, { merge: true }).catch(err => {
-            console.warn("Firestore syncUserDataToCloud warning:", err);
-          });
-        }).catch(err => console.warn(err));
+          };
+
+          const serialized = JSON.stringify(payload);
+          if (lastSyncedPayloadByUser[username] === serialized) {
+            return;
+          }
+
+          import('../lib/firebase').then(async ({ db, doc, safeSetDoc, isFirestoreQuotaPaused }) => {
+            if (isFirestoreQuotaPaused()) return;
+            const ok = await safeSetDoc(doc(db, 'global_users', username), payload, { merge: true });
+            if (ok) {
+              lastSyncedPayloadByUser[username] = serialized;
+            }
+          }).catch(err => console.warn(err));
+        }, 2500);
       },
 
       loadUserFromCloud: async (username: string) => {
@@ -913,6 +1170,9 @@ export const useStore = create<AppState>()(
               rombelConfig: cloudData.rombelConfig || existingLocal.rombelConfig || {},
               jurnalState: cloudData.jurnalState || existingLocal.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
               jurnalEntries: cloudData.jurnalEntries || existingLocal.jurnalEntries || {},
+              sumatifConfig: cloudData.sumatifConfig || existingLocal.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
+              isSumatifConfigLocked: cloudData.isSumatifConfigLocked !== undefined ? Boolean(cloudData.isSumatifConfigLocked) : Boolean(existingLocal.isSumatifConfigLocked),
+              savedSumatifs: cloudData.savedSumatifs || existingLocal.savedSumatifs || [],
               generatedModulAtps: cloudData.generatedModulAtps || existingLocal.generatedModulAtps || {},
               activeSessionId: cloudData.activeSessionId || existingLocal.activeSessionId
             };

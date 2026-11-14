@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+.arabic-text {
+  font-family: 'Amiri', 'Traditional Arabic', 'Scheherazade New', serif;
+  direction: rtl;
+  unicode-bidi: isolate;
+  line-height: 2;
+  letter-spacing: 0;
+}

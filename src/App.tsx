@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import React from 'react';
-import { useStore } from './store/useStore';
+import { useStore, DEFAULT_SUMATIF_CONFIG } from './store/useStore';
 
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -16,6 +16,7 @@ import DaftarSiswa from './pages/DaftarSiswa';
 import Presensi from './pages/Presensi';
 import KKTP from './pages/KKTP';
 import Jurnal from './pages/Jurnal';
+import Sumatif from './pages/Sumatif';
 import Admin from './pages/Admin';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -37,102 +38,61 @@ export default function App() {
   const currentUserSessionId = useStore(state => state.currentUserSessionId);
 
   React.useEffect(() => {
-    let unsubscribeUsers = () => {};
-    let unsubscribeRequests = () => {};
+    if (!currentUser) return;
+
+    let unsubscribeUser = () => {};
     let lastWarningTime = 0;
 
-    import('./lib/firebase').then(({ db, collection, onSnapshot, doc, setDoc }) => {
-      // 1. Listen to all global_users in real time across all devices
-      unsubscribeUsers = onSnapshot(collection(db, 'global_users'), (snapshot) => {
-        const loaded: Record<string, any> = {};
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          const uid = docSnap.id.toLowerCase();
-          loaded[uid] = {
-            username: data.username || uid,
-            password: data.password || '123456',
-            label: data.label || 'Demo',
-            signupTime: data.signupTime || Date.now(),
-            profile: data.profile || null,
-            calendarData: data.calendarData || null,
-            schedules: data.schedules || {},
-            savedProtas: data.savedProtas || {},
-            students: data.students || {},
-            attendance: data.attendance || [],
-            atpBatches: data.atpBatches || {},
-            savedKktps: data.savedKktps || [],
-            modulAjarHistories: data.modulAjarHistories || [],
-            rombelConfig: data.rombelConfig || {},
-            jurnalState: data.jurnalState || { bulan: 'JUNI 2026', pengawasNama: '', pengawasNip: '', items: {} },
-            jurnalEntries: data.jurnalEntries || {},
-            generatedModulAtps: data.generatedModulAtps || {},
-            activeSessionId: data.activeSessionId || null
-          };
-        });
-
+    import('./lib/firebase').then(({ db, onSnapshot, doc, isFirestoreQuotaError, markFirestoreQuotaExceeded }) => {
+      // Listen only to the active user's document (prevents collection-wide read/write amplification)
+      unsubscribeUser = onSnapshot(doc(db, 'global_users', currentUser), (docSnap) => {
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
         const currentState = useStore.getState();
-        const currentLocal = currentState.usersData || {};
 
-        // Merge any existing local accounts that might not yet be in cloud, and upload them
-        Object.keys(currentLocal).forEach(uid => {
-          if (!loaded[uid] && currentLocal[uid]) {
-            loaded[uid] = currentLocal[uid];
-            setDoc(doc(db, 'global_users', uid), {
-              username: uid,
-              ...currentLocal[uid]
-            }, { merge: true }).catch(err => console.warn("App auto-sync user error:", err));
-          }
-        });
-
-        useStore.setState({ usersData: loaded });
-
-        // If user is currently logged in, check for multi-device session displacement or warning
-        if (currentState.currentUser && loaded[currentState.currentUser]) {
-          const activeUserDoc = loaded[currentState.currentUser];
-          if (
-            currentState.currentUserSessionId &&
-            activeUserDoc.activeSessionId &&
-            activeUserDoc.activeSessionId !== currentState.currentUserSessionId
-          ) {
-            alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
-            currentState.logout();
-          } else if (activeUserDoc.loginAttemptWarning && activeUserDoc.loginAttemptWarning > lastWarningTime) {
-            lastWarningTime = activeUserDoc.loginAttemptWarning;
-            if (Date.now() - activeUserDoc.loginAttemptWarning < 10000) {
-              alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
-            }
+        // Check for multi-device session displacement or login warning
+        if (
+          currentState.currentUserSessionId &&
+          data.activeSessionId &&
+          data.activeSessionId !== currentState.currentUserSessionId
+        ) {
+          alert('Sesi tidak valid atau akun Anda telah diakses dari perangkat lain. Anda akan dikeluarkan.');
+          currentState.logout();
+          return;
+        } else if (data.loginAttemptWarning && data.loginAttemptWarning > lastWarningTime) {
+          lastWarningTime = data.loginAttemptWarning;
+          if (Date.now() - data.loginAttemptWarning < 10000) {
+            alert("Ada user dari perangkat berbeda yang berusaha masuk menggunakan akun anda");
           }
         }
-      }, (error) => {
-        console.warn("Firestore global_users listener warning:", error);
-      });
 
-      // 2. Listen to all upgrade_requests in real time
-      unsubscribeRequests = onSnapshot(collection(db, 'upgrade_requests'), (snapshot) => {
-        const requests: any[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          requests.push({
-            id: docSnap.id,
-            namaLengkap: data.namaLengkap || '',
-            noWhatsapp: data.noWhatsapp || '',
-            username: data.username || '',
-            timestamp: data.timestamp || Date.now(),
-            status: data.status || 'pending'
+        // Keep account metadata synced if updated by admin (e.g. Demo -> Full Time)
+        const existingLocal = currentState.usersData?.[currentUser];
+        if (existingLocal && (data.label !== existingLocal.label || data.password !== existingLocal.password)) {
+          useStore.setState({
+            usersData: {
+              ...currentState.usersData,
+              [currentUser]: {
+                ...existingLocal,
+                label: data.label || existingLocal.label || 'Demo',
+                password: data.password || existingLocal.password,
+                activeSessionId: data.activeSessionId || existingLocal.activeSessionId,
+              }
+            }
           });
-        });
-        requests.sort((a, b) => a.timestamp - b.timestamp);
-        useStore.setState({ upgradeRequests: requests });
+        }
       }, (error) => {
-        console.warn("Firestore upgrade_requests listener warning:", error);
+        if (isFirestoreQuotaError(error)) {
+          markFirestoreQuotaExceeded();
+        }
+        console.warn("Firestore active user listener warning:", error);
       });
     }).catch(e => console.error(e));
 
     return () => {
-      unsubscribeUsers();
-      unsubscribeRequests();
+      unsubscribeUser();
     };
-  }, []);
+  }, [currentUser]);
 
   React.useEffect(() => {
     const pressedKeys = new Set<string>();
@@ -189,6 +149,7 @@ export default function App() {
         <Route path="/modul-ajar-history" element={<ProtectedRoute><ModulAjarHistory /></ProtectedRoute>} />
         <Route path="/kktp" element={<ProtectedRoute><KKTP /></ProtectedRoute>} />
         <Route path="/jurnal" element={<ProtectedRoute><Jurnal /></ProtectedRoute>} />
+        <Route path="/sumatif" element={<ProtectedRoute><Sumatif /></ProtectedRoute>} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>
