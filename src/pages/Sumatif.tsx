@@ -35,6 +35,7 @@ import {
   downloadPaketLengkapDocx,
   downloadRubrikPenskoranDocx,
 } from '../lib/sumatifDocx';
+import { generateSumatifClient } from '../lib/geminiClient';
 
 interface FlattenedAtpItem {
   globalIdx: number;
@@ -389,25 +390,57 @@ export default function Sumatif() {
 
     setGenerating(true);
     try {
-      const response = await fetch('/api/sumatif/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          grade: activeGrade,
-          jenisSumatif: activeJenis,
-          semesterLabel,
-          judulAsesmen,
-          protaItems: Array.from(groupedMap.values()),
-          config: sumatifConfig,
-          profile,
-          previousQuestionStems,
-          userApiKey: geminiApiKey || undefined,
-        }),
-      });
+      const requestBody = {
+        grade: activeGrade,
+        jenisSumatif: activeJenis,
+        semesterLabel,
+        judulAsesmen,
+        protaItems: Array.from(groupedMap.values()),
+        config: sumatifConfig,
+        profile,
+        previousQuestionStems,
+        userApiKey: geminiApiKey || undefined,
+      };
 
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || 'Gagal menghasilkan Naskah Sumatif.');
+      let payload: any = null;
+      let serverErrorMessage: string | null = null;
+
+      try {
+        const response = await fetch('/api/sumatif/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+
+        const rawText = await response.text();
+        let parsedJson: any = null;
+        if (rawText && rawText.trim().startsWith('{')) {
+          try {
+            parsedJson = JSON.parse(rawText);
+          } catch {
+            parsedJson = null;
+          }
+        }
+
+        if (response.ok && parsedJson && Array.isArray(parsedJson.soalPg)) {
+          payload = parsedJson;
+        } else if (parsedJson?.error) {
+          serverErrorMessage = parsedJson.error;
+        }
+      } catch (networkErr: any) {
+        serverErrorMessage = networkErr?.message || null;
+      }
+
+      // Fallback ke client-side Gemini (seperti Prota & Modul Ajar) jika di Vercel endpoint serverless/server tidak aktif
+      if (!payload) {
+        if (geminiApiKey || (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY)) {
+          payload = await generateSumatifClient(requestBody);
+        } else {
+          throw new Error(
+            serverErrorMessage ||
+              'Endpoint server tidak tersedia di Vercel dan API Key Gemini belum diatur di menu Pengaturan API. Silakan masukkan API Key Gemini Anda di menu Pengaturan API pada sidebar kiri.'
+          );
+        }
       }
 
       const newDoc: SumatifDocument = {

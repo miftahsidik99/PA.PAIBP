@@ -529,7 +529,7 @@ ${antiDuplicationList}
       let rawText = '';
       let retries = 3;
       let delay = 2000;
-      const models = ['gemini-4-hydrogen', 'gemini-3.1-flash-lite'];
+      const models = ['gemini-4-hydrogen', 'gemini-2.5-flash', 'gemini-3.1-flash-lite'];
       let modelIdx = 0;
 
       while (retries > 0) {
