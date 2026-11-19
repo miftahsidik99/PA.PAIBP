@@ -1,7 +1,7 @@
 import React from 'react';
 import { ReactNode, useRef } from 'react';
 import { useStore } from '../store/useStore';
-import { LogOut, BookOpen, Calendar, BookText, Home, FileText, Download, Upload, Users, ChevronLeft, Menu, ClipboardList, ShieldAlert, CheckCircle, FileCheck2 } from 'lucide-react';
+import { LogOut, BookOpen, Calendar, BookText, Home, FileText, Download, Upload, Users, ChevronLeft, Menu, ClipboardList, ShieldAlert, CheckCircle, FileCheck2, Image as ImageIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import ApiKeyModal from './ApiKeyModal';
 import { Key } from 'lucide-react';
@@ -20,6 +20,7 @@ const navigation = [
   { name: 'KKTP', href: '/kktp', icon: ClipboardList },
   { name: 'Jurnal', href: '/jurnal', icon: BookOpen },
   { name: 'Naskah Sumatif', href: '/sumatif', icon: FileCheck2 },
+  { name: 'Materi Ajar', href: '/materi-ajar', icon: ImageIcon },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {

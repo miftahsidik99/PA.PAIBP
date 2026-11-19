@@ -17,6 +17,7 @@ import Presensi from './pages/Presensi';
 import KKTP from './pages/KKTP';
 import Jurnal from './pages/Jurnal';
 import Sumatif from './pages/Sumatif';
+import MateriAjar from './pages/MateriAjar';
 import Admin from './pages/Admin';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -150,6 +151,7 @@ export default function App() {
         <Route path="/kktp" element={<ProtectedRoute><KKTP /></ProtectedRoute>} />
         <Route path="/jurnal" element={<ProtectedRoute><Jurnal /></ProtectedRoute>} />
         <Route path="/sumatif" element={<ProtectedRoute><Sumatif /></ProtectedRoute>} />
+        <Route path="/materi-ajar" element={<ProtectedRoute><MateriAjar /></ProtectedRoute>} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>

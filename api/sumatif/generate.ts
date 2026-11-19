@@ -259,7 +259,7 @@ ${antiDuplicationList}
       required: ['kisiKisi', 'soalPg', 'soalIsian', 'soalUraian']
     };
 
-    const models = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.0-flash'];
+    const models = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-4-hydrogen'];
     let rawText = '';
     let retries = models.length + 1;
     let delay = 1500;
@@ -282,8 +282,9 @@ ${antiDuplicationList}
         retries--;
         if (retries === 0) throw err;
         modelIdx = (modelIdx + 1) % models.length;
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 1.5;
+        const isNotFound = err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('NOT_FOUND');
+        await new Promise(resolve => setTimeout(resolve, isNotFound ? 250 : delay));
+        if (!isNotFound) delay *= 1.5;
       }
     }
 

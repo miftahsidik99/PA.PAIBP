@@ -404,6 +404,7 @@ export default function Sumatif() {
 
       let payload: any = null;
       let serverErrorMessage: string | null = null;
+      let serverErrorObj: Error | null = null;
 
       try {
         const response = await fetch('/api/sumatif/generate', {
@@ -425,20 +426,35 @@ export default function Sumatif() {
         if (response.ok && parsedJson && Array.isArray(parsedJson.soalPg)) {
           payload = parsedJson;
         } else if (parsedJson?.error) {
-          serverErrorMessage = parsedJson.error;
+          serverErrorObj = new Error(parsedJson.error);
+        } else if (!response.ok) {
+          serverErrorMessage = `Server merespons dengan status ${response.status}.`;
         }
-      } catch (networkErr: any) {
-        serverErrorMessage = networkErr?.message || null;
+      } catch (fetchErr: any) {
+        serverErrorMessage = fetchErr?.message || null;
       }
 
-      // Fallback ke client-side Gemini (seperti Prota & Modul Ajar) jika di Vercel endpoint serverless/server tidak aktif
+      if (serverErrorObj) {
+        throw serverErrorObj;
+      }
+
+      // Fallback ke client-side Gemini hanya jika endpoint serverless tidak tersedia di host statis (bukan di AI Studio proxy)
       if (!payload) {
-        if (geminiApiKey || (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY)) {
+        const isAiStudioProxyHost =
+          typeof window !== 'undefined' &&
+          (window.location.hostname.endsWith('.run.app') ||
+            window.location.hostname === 'localhost' ||
+            window.location.hostname === '127.0.0.1');
+
+        if (
+          !isAiStudioProxyHost &&
+          (geminiApiKey || (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY))
+        ) {
           payload = await generateSumatifClient(requestBody);
         } else {
           throw new Error(
             serverErrorMessage ||
-              'Endpoint server tidak tersedia di Vercel dan API Key Gemini belum diatur di menu Pengaturan API. Silakan masukkan API Key Gemini Anda di menu Pengaturan API pada sidebar kiri.'
+              'Gagal terhubung ke layanan pembuat Naskah Sumatif. Silakan coba beberapa saat lagi.'
           );
         }
       }

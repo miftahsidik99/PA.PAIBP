@@ -242,6 +242,88 @@ export interface SumatifDocument {
   };
 }
 
+export type MateriTemplateStyle =
+  | 'educational_infographic'
+  | 'cheat_sheet'
+  | 'sticky_notes'
+  | 'mind_map'
+  | 'comic_strip'
+  | 'flashcard'
+  | 'step_by_step'
+  | 'timeline'
+  | 'comparison_chart'
+  | 'isometric_3d';
+
+export type MateriFokusMode = 'tp' | 'atp';
+
+export interface MateriStyleSpecificData {
+  cheatSheetFacts?: { label: string; nilai: string }[];
+  stickyNotes?: { warna: 'yellow' | 'mint' | 'sky' | 'rose'; judul: string; isi: string }[];
+  mindMapCabang?: { cabang: string; subPoin: string[] }[];
+  comicPanels?: {
+    panelNo: number;
+    latar: string;
+    tokoh: string;
+    dialog: string;
+    narasi: string;
+    svgScene?: string;
+  }[];
+  flashcards?: { nomor: number; depan: string; arab?: string; belakang: string; tips: string }[];
+  stepByStep?: { langkahNo: number; judulLangkah: string; deskripsi: string; catatan?: string }[];
+  timelineEvents?: { urutan: string; judulPeristiwa: string; keterangan: string; hikmah: string }[];
+  comparisonData?: {
+    judulPerbandingan: string;
+    kolomA: string;
+    kolomB: string;
+    baris: { aspek: string; nilaiA: string; nilaiB: string }[];
+  };
+  isometricObjects?: { namaObjek: string; fungsi: string; makna: string; svgIsometric?: string }[];
+}
+
+export interface MateriAjarInfografis {
+  id: string;
+  createdAt: number;
+  grade: number;
+  fase: 'A' | 'B' | 'C';
+  elemen: string;
+  cp: string;
+  tp: string;
+  fokusPilihan?: MateriFokusMode;
+  gayaTemplate?: MateriTemplateStyle;
+  temaWarna: 'emerald' | 'sky' | 'amber' | 'indigo';
+  judulMateri: string;
+  pengantarMateri: {
+    pengantarSingkat: string;
+    pertanyaanPemantik: string;
+  };
+  intiMateri: {
+    pengertianKonsep: string;
+    penjelasanUtama: string;
+    poinPenting: string[];
+    contohKonkret: string[];
+    teksArab?: string;
+    artinyaArab?: string;
+    ilustrasiSvg: string;
+    captionIlustrasi: string;
+  };
+  contohSehariHari: {
+    situasi: string;
+    penerapan: string[];
+    ilustrasiSvg: string;
+    captionIlustrasi: string;
+  };
+  aktivitasSiswa: {
+    judulAktivitas: string;
+    langkah: string[];
+  };
+  rangkuman: string[];
+  latihanPemahaman: {
+    nomor: number;
+    pertanyaan: string;
+  }[];
+  styleSpecific?: MateriStyleSpecificData;
+}
+
 export interface UpgradeRequest {
   id: string;
   namaLengkap: string;
@@ -269,6 +351,7 @@ export interface UserData {
   sumatifConfig?: SumatifConfig;
   isSumatifConfigLocked?: boolean;
   savedSumatifs?: SumatifDocument[];
+  savedMateriAjars?: MateriAjarInfografis[];
   password?: string;
   label?: 'Full Time' | 'Demo';
   signupTime?: number;
@@ -300,6 +383,7 @@ interface AppState {
   sumatifConfig: SumatifConfig;
   isSumatifConfigLocked: boolean;
   savedSumatifs: SumatifDocument[];
+  savedMateriAjars: MateriAjarInfografis[];
 
   // Actions
   login: (username: string) => void;
@@ -338,6 +422,8 @@ interface AppState {
   addSavedSumatif: (doc: SumatifDocument) => void;
   updateSavedSumatif: (doc: SumatifDocument) => void;
   deleteSavedSumatif: (id: string) => void;
+  addSavedMateriAjar: (item: MateriAjarInfografis) => void;
+  deleteSavedMateriAjar: (id: string) => void;
 
   importData: (jsonData: string) => void;
   syncUserDataToCloud: () => void;
@@ -394,7 +480,8 @@ const initialUserData: UserData = {
   jurnalEntries: {},
   sumatifConfig: DEFAULT_SUMATIF_CONFIG,
   isSumatifConfigLocked: false,
-  savedSumatifs: []
+  savedSumatifs: [],
+  savedMateriAjars: []
 };
 
 const syncTimers: Record<string, ReturnType<typeof setTimeout>> = {};
@@ -430,6 +517,7 @@ export const useStore = create<AppState>()(
       sumatifConfig: DEFAULT_SUMATIF_CONFIG,
       isSumatifConfigLocked: false,
       savedSumatifs: [],
+      savedMateriAjars: [],
       geminiApiKey: null,
       setGeminiApiKey: (key) => set({ geminiApiKey: key }),
 
@@ -709,6 +797,7 @@ export const useStore = create<AppState>()(
           sumatifConfig: userData.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
           isSumatifConfigLocked: Boolean(userData.isSumatifConfigLocked),
           savedSumatifs: userData.savedSumatifs || [],
+          savedMateriAjars: userData.savedMateriAjars || [],
           usersData: {
             ...state.usersData,
             [normalized]: userData
@@ -757,6 +846,7 @@ export const useStore = create<AppState>()(
           sumatifConfig: DEFAULT_SUMATIF_CONFIG,
           isSumatifConfigLocked: false,
           savedSumatifs: [],
+          savedMateriAjars: [],
         });
       },
 
@@ -1077,6 +1167,34 @@ export const useStore = create<AppState>()(
         state.syncUserDataToCloud();
       },
 
+      addSavedMateriAjar: (item) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextList = [item, ...(state.savedMateriAjars || [])];
+        set({
+          savedMateriAjars: nextList,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], savedMateriAjars: nextList }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
+      deleteSavedMateriAjar: (id) => {
+        const state = get();
+        if (!state.currentUser) return;
+        const nextList = (state.savedMateriAjars || []).filter(item => item.id !== id);
+        set({
+          savedMateriAjars: nextList,
+          usersData: {
+            ...state.usersData,
+            [state.currentUser]: { ...state.usersData[state.currentUser], savedMateriAjars: nextList }
+          }
+        });
+        state.syncUserDataToCloud();
+      },
+
       setAttendance: (attendance) => {
         const state = get();
         if (!state.currentUser) return;
@@ -1123,6 +1241,7 @@ export const useStore = create<AppState>()(
             sumatifConfig: currentData.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
             isSumatifConfigLocked: Boolean(currentData.isSumatifConfigLocked),
             savedSumatifs: currentData.savedSumatifs || [],
+            savedMateriAjars: currentData.savedMateriAjars || [],
             generatedModulAtps: currentData.generatedModulAtps || {},
             activeSessionId: currentData.activeSessionId || null
           };
@@ -1173,6 +1292,7 @@ export const useStore = create<AppState>()(
               sumatifConfig: cloudData.sumatifConfig || existingLocal.sumatifConfig || DEFAULT_SUMATIF_CONFIG,
               isSumatifConfigLocked: cloudData.isSumatifConfigLocked !== undefined ? Boolean(cloudData.isSumatifConfigLocked) : Boolean(existingLocal.isSumatifConfigLocked),
               savedSumatifs: cloudData.savedSumatifs || existingLocal.savedSumatifs || [],
+              savedMateriAjars: cloudData.savedMateriAjars || existingLocal.savedMateriAjars || [],
               generatedModulAtps: cloudData.generatedModulAtps || existingLocal.generatedModulAtps || {},
               activeSessionId: cloudData.activeSessionId || existingLocal.activeSessionId
             };
